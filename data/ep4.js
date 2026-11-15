@@ -18,6 +18,7 @@ export default {
     ['In load test A (100% new names), how fast was Bloom and how many DB hits?', 'About 68k requests/sec with 0 DB hits: every request stopped at the filter.'],
     ['Static data that rarely changes, minimum RAM: which filter?', 'Binary Fuse (or XOR), the “static king”. Rebuild it to change it.'],
     ['You need delete but want to stay with Bloom. What do you use?', 'Counting Bloom: a counter per slot, so you can subtract. Costs more memory.'],
+    ['Bloom with 4 workers at 300 crore records: how much RAM per machine?', 'About 4 × 7.2 GB ≈ 29 GB, because each worker keeps its own copy. Cuckoo shares one file.'],
     ['300 crore records: will one machine/node do?', 'No. At that size you need sharding.'],
     ['How long would rebuilding a Fuse filter take at 300 crore?', 'About 3 hours (3M records took 12 s; linear estimate). Cuckoo loads instantly from its saved file.'],
     ['Should a startup add these filters on day one?', 'No. Add them as users scale, and decide by watching the stats.'],
