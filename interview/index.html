@@ -232,6 +232,7 @@ function drawAll() {
   clearInterval(tick); fuNew(); fuDraw(); drNew(); drDraw(); drawProbSelect(); $('d-out').innerHTML = ''; $('d-time').textContent = '10:00';
 }
 drawAll();
+tabs.find(t => t.id === `tab-${qs.get('tab')}`)?.click(); // ?tab=fu|dr|draw
 </script>
 </body>
 </html>
