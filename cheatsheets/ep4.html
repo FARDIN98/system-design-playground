@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EP-4 cheat sheet</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
+<div class="sheet">
+  <header>
+    <h1>EP-4 · Bloom vs Cuckoo vs Binary Fuse filters<br><small style="font-size:9pt;font-weight:500">Last-hour cheat sheet</small></h1>
+    <p>Ankit Jain · System Design EP-4<br><a href="https://www.youtube.com/watch?v=B8hMPCM7i8w">youtube.com/watch?v=B8hMPCM7i8w</a><br>“(general)” = standard practice, not from the video</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>“Does this value exist?” in the HLD <small>· ▶ 24:39</small></h2>
+      <svg viewBox="0 0 360 112" role="img" aria-label="Client to load balancer to a server holding a filter in RAM. NO returns 404 at once with no DB hit. MAYBE confirms in the DB or Elasticsearch: found returns 200, not found returns 404 as a false positive.">
+        <rect class="bx" x="2" y="42" width="46" height="26" rx="3"/><text x="25" y="58" text-anchor="middle" class="b">Client</text>
+        <rect class="bx" x="62" y="42" width="40" height="26" rx="3"/><text x="82" y="58" text-anchor="middle" class="b">LB</text>
+        <rect class="bx" x="116" y="6" width="112" height="100" rx="4"/>
+        <text x="172" y="18" text-anchor="middle" class="b">Each server (A, B, C, D)</text>
+        <rect class="hot" x="128" y="26" width="88" height="32" rx="3"/><text x="172" y="40" text-anchor="middle" class="b">Filter in RAM</text><text x="172" y="51" text-anchor="middle" class="s">~1 ms · no network hop</text>
+        <text x="172" y="74" text-anchor="middle" class="s">bulk-loaded from the DB on startup</text>
+        <text x="172" y="85" text-anchor="middle" class="s">+ Redis Streams for every change</text>
+        <text x="172" y="98" text-anchor="middle" class="s">(Cuckoo: one shared mmap file)</text>
+        <rect class="ok" x="248" y="4" width="110" height="28" rx="3"/><text x="303" y="16" text-anchor="middle" class="b">NO → 404 now</text><text x="303" y="27" text-anchor="middle" class="s">always right · 0 DB hits</text>
+        <rect class="bx" x="248" y="44" width="110" height="26" rx="3"/><text x="303" y="55" text-anchor="middle" class="b">MAYBE → DB / ES</text><text x="303" y="65" text-anchor="middle" class="s">confirm (source of truth)</text>
+        <rect class="ok" x="248" y="82" width="52" height="26" rx="3"/><text x="274" y="93" text-anchor="middle" class="b">found</text><text x="274" y="103" text-anchor="middle" class="s">200</text>
+        <rect class="no" x="306" y="82" width="52" height="26" rx="3"/><text x="332" y="93" text-anchor="middle" class="b">not found</text><text x="332" y="103" text-anchor="middle" class="s">404 (false +)</text>
+        <path class="ln" d="M48,55 L61,55"/><path class="ln" d="M102,55 L115,55"/>
+        <path class="ln g" d="M216,36 L247,20"/><path class="ln" d="M216,50 L247,57"/>
+        <path class="ln" d="M274,70 L274,81"/><path class="ln" d="M332,70 L332,81"/>
+      </svg>
+    </section>
+
+    <section>
+      <h2>The 5 steps, for this episode</h2>
+      <ol class="steps">
+        <li><b>Requirements</b> <span class="t">3 min</span> · “Does X exist?” (username, UPI ID, blocked IP) at 300 crore, in ms, without a DB hit each time. A wrong “free” is not OK. Deletes?</li>
+        <li><b>Estimates</b> <span class="t">4 min</span> · <span class="formula">bits/item ≈ 1.44 · log₂(1/p)</span> <span class="gen">(general)</span>. Bloom at 0.01% ≈ 2.4 B/record → 7.2 GB at 300 Cr, × workers.</li>
+        <li><b>HLD</b> <span class="t">8 min</span> · LB → servers, each with the filter in RAM. NO → 404. MAYBE → DB/ES → 200 or 404.</li>
+        <li><b>Deep dive</b> <span class="t">8 min</span> · Pick the filter (table). Sync: bulk-load + Redis Streams. Persist it for fast restarts.</li>
+        <li><b>Trade-offs</b> <span class="t">5 min</span> · Saves reads, not storage. RAM per worker. Rebuild time. Sharding. Not on day one.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Pick the filter <small>· ▶ 20:00, 47:20</small></h2>
+      <table>
+        <tr><th>Filter</th><th>Delete?</th><th>Use when</th></tr>
+        <tr><td><b>Bloom</b></td><td>✗</td><td>only add, never delete; simple</td></tr>
+        <tr><td><b>Counting Bloom</b></td><td>✓</td><td>need delete but want Bloom (more memory)</td></tr>
+        <tr><td><b>Cuckoo</b></td><td>✓</td><td>deletes + many workers (one shared file, instant restart); fewer false +</td></tr>
+        <tr><td><b>Binary Fuse / XOR</b></td><td>rebuild</td><td>static data, minimum RAM, fastest (“static king”)</td></tr>
+        <tr><td><b>Quotient</b></td><td>✓</td><td>storage systems; cache friendly, a bit complex</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Numbers to remember</h2>
+      <table>
+        <tr><td>Demo: 30 lakh usernames</td><td class="n">Bloom 7.5 MB vs Mongo 161 MB</td></tr>
+        <tr><td>Load test, 100% new names</td><td class="n">68k req/s · 0 DB hits</td></tr>
+        <tr><td>Load test, 100% existing</td><td class="n">~17k req/s</td></tr>
+        <tr><td>300 Cr at 0.01%: Bloom · Fuse · Cuckoo</td><td class="n">7.2 · 6.8 · 14.7 GB</td></tr>
+        <tr><td>Mongo username index (~30 B/rec)</td><td class="n">~90 GB at 300 Cr</td></tr>
+        <tr><td>Bloom copy per worker</td><td class="n">4 × 7.2 ≈ 29 GB/machine</td></tr>
+        <tr><td>Fuse rebuild: 30 lakh in 12 s →</td><td class="n">300 Cr ≈ 3 hours</td></tr>
+        <tr><td>Index dropped: Mongo vs ES</td><td class="n">685 ms vs 14 ms</td></tr>
+        <tr><td>Cloud cost at 300 Cr (rough AI estimate)</td><td class="n">$5.5k → $3.5k/mo (~36%)</td></tr>
+        <tr><td>1 crore</td><td class="n">10 million</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>The golden rule <small>· ▶ 28:46</small></h2>
+      <p style="margin:0">The filter’s <b>NO is a promise</b>, its <b>YES is a rumour</b>. Bits are shared by many items, so a 0 can only mean “never added”: no false negatives, only false positives. The false-positive rate is tunable: more bits or hashes, more RAM.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this</h2>
+      <ul class="say">
+        <li>“A NO returns 404 straight away with no DB hit; a YES is only a maybe, so I confirm it in the DB.”</li>
+        <li>“It cuts read cost, not storage. Mongo stays the source of truth, so the disk bill stays.”</li>
+        <li>“Bloom can’t delete. If accounts can be deleted I’d take Cuckoo, which also shares one mmap file across workers.”</li>
+        <li>“I’d bulk-load the filter on startup and push every change to all servers with Redis Streams.”</li>
+        <li>“I wouldn’t add this on day one. I’d add it when the stats show DB reads hurting.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags: don’t say or do</h2>
+      <ul class="flags">
+        <li>Telling the user “taken” just because the filter said maybe.</li>
+        <li>Clearing Bloom bits to delete a name (other names vanish: false negatives).</li>
+        <li>Forgetting each worker holds its own copy (RAM × workers).</li>
+        <li>Binary Fuse for data that changes all the time.</li>
+        <li>Claiming the filter shrinks the storage bill.</li>
+        <li>One machine at 300 crore (you need sharding).</li>
+        <li>No plan to keep filters in sync across servers.</li>
+        <li>Repeating an AI claim unchecked: Chrome Safe Browsing uses a hash-prefix filter, not Binary Fuse (▶ 23:36).</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public video; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: flags content that would be clipped off the A4 page */
+{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
+ if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+</body>
+</html>
