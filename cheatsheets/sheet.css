@@ -3,7 +3,7 @@
 :root {
   color-scheme: light;
   --ink: #1d1d1b; --muted: #5f5e58; --line: #d6d5ce;
-  --a: #2a78d6; --a-soft: #e3eefb; --b: #14925f; --b-soft: #e0f4ea; --bad: #b42323; --bad-soft: #fbe8e8;
+  --a: #2a78d6; --a-soft: #e3eefb; --b: #14925f; --b-soft: #e0f4ea; --bad: #b42323; --bad-soft: #fbe8e8; --warn: #b07300;
 }
 * { box-sizing: border-box; }
 html { background: #e9e8e3; }

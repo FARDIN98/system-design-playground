@@ -119,8 +119,20 @@ export const DRILLS = {
       unit: 'GB', answer: workers * gb,
       working: `${workers} × ${gb} GB = <b>${+(workers * gb).toFixed(1)} GB</b>. That's why EP-4's Cuckoo used one shared mmap file instead of a copy per worker.` };
   },
+  vus(rnd) {
+    const vus = pick([50, 500, 2000, 5000], rnd), secs = pick([15, 30, 60], rnd);
+    return { kind: 'vus', q: `A k6 script runs <b>${fmtNum(vus)} virtual users</b> for <b>${secs} s</b>. Each loop sends one request, then calls <code>sleep(1)</code>. About how many <b>requests</b> in total?`,
+      unit: 'requests', answer: vus * secs,
+      working: `sleep(1) caps each VU at about 1 request per second: ${fmtNum(vus)} × ${secs} ≈ <b>${fmtNum(vus * secs)}</b>. EP-1.1 got 29,959 for 2000 VUs × 15 s: the test, not the server, was the limit.` };
+  },
+  gzip(rnd) {
+    const mb = pick([200, 500, 1200, 3000], rnd);
+    return { kind: 'gzip', q: `Your API sends <b>${fmtNum(mb)} MB</b> of JSON replies in a test. gzip makes replies about <b>70% smaller</b>. About how many <b>MB</b> go over the network now?`,
+      unit: 'MB', answer: mb * 0.3,
+      working: `70% smaller leaves 30%: ${fmtNum(mb)} × 0.3 ≈ <b>${fmtNum(mb * 0.3)} MB</b>. The price is CPU: EP-1.1 served 133,702 requests through Nginx + gzip vs ~1.5 lakh without it.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;

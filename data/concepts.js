@@ -3,8 +3,7 @@
 export const CONCEPTS = [
   // EP-1
   { id: 'hld', label: 'HLD', t: { ep1: 982 }, def: 'High-level design: the big boxes and choices (services, DB, cache, queue, load balancer).' },
-  { id: 'lld', label: 'LLD', t: { ep1: 982 }, def: 'Low-level design: the details inside each box (DB schema, APIs, error handling, refunds).' },
-  { id: 'monolith', label: 'Monolith', t: { ep1: 1294 }, def: 'The whole app built and deployed as one piece. Fine to start with.' },
+    { id: 'monolith', label: 'Monolith', t: { ep1: 1294 }, def: 'The whole app built and deployed as one piece. Fine to start with.' },
   { id: 'cdn', label: 'CDN', t: { ep1: 582 }, def: 'Copies of files kept in data centres near users, for low latency.' },
   { id: 'gateway', label: 'API gateway', t: { ep1: 552 }, def: 'The front door: routes each request to the right service and hides the backend.' },
   { id: 'hotspot', label: 'Hotspot', t: { ep1: 552 }, def: 'One server or DB getting most of the traffic.' },
@@ -19,13 +18,14 @@ export const CONCEPTS = [
   { id: 'signature', label: 'File signature', t: { ep1: 2180 }, def: 'The first bytes of a file, which show its real type. Check this, not the extension.' },
   { id: 'backup', label: 'Backup', t: { ep1: 2210 }, def: 'A copy of the DB and static files to recover from loss, even if you replicate.' },
   { id: 'archival', label: 'Archival', t: { ep1: 2240 }, def: 'Move old data out of the main DB but keep it (UPI ~6 months, IRCTC old tickets).' },
-  // in both episodes
-  { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479 }, def: 'Spreads requests across many servers so none becomes a hotspot.' },
+  // in 2+ episodes
+  { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
+  { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
   { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-4: the filter is checked even before Redis.' },
   { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
-  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006 }, def: 'Send many users and requests to find the threshold. EP-4 used Grafana k6.' },
+  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862 }, def: 'Send many users and requests to find the threshold. EP-4 and EP-1.1 used Grafana k6.' },
   // EP-4
   { id: 'exists', label: '“Does it exist?” check', t: { ep4: 0 }, def: 'Validate a value (username, UPI ID, blocked IP) without fetching it or hitting the DB.' },
   { id: 'fp', label: 'False positive', t: { ep4: 1726 }, def: 'The filter says “maybe” for something that isn’t there. Confirm a “maybe” in the DB.' },
@@ -40,6 +40,19 @@ export const CONCEPTS = [
   { id: 'streams', label: 'Redis Streams sync', t: { ep4: 1913 }, def: 'Push each add/change to every server’s filter in a fraction of a second.' },
   { id: 'rebuild', label: 'Rebuild on restart', t: { ep4: 2805 }, def: 'Bloom and Fuse rebuild by scanning the DB (300 crore ≈ 3 h for Fuse); Cuckoo loads its saved file.' },
   { id: 'hashprefix', label: 'Hash Prefix (Chrome)', t: { ep4: 1416 }, def: 'What Chrome Safe Browsing really uses: Bloom-like logic to check malicious URLs locally.' },
+  // EP-1.1
+  { id: 'guardrails', label: 'AI guardrails', t: { ep11: 1625 }, def: 'Rules for an AI agent: run nothing without OK, no push, no DB or file deletes, stay in the folder, plan first.' },
+  { id: 'hooks', label: 'Hooks', t: { ep11: 1716 }, def: 'Scripts that run before each AI tool call and can block it (exit code 2), even in auto mode.' },
+  { id: 'featurebased', label: 'Feature-based folders', t: { ep11: 2604 }, def: 'One folder per feature with its route, schema, service, repository and types.' },
+  { id: 'layers', label: 'Request layers', t: { ep11: 3557 }, def: 'Route → schema check → service → repository → DB. 404 if no route, 400 if bad input.' },
+  { id: 'docker', label: 'Docker', t: { ep11: 2973 }, def: 'Packs the app with its environment so it runs the same on every machine. Costs laptop speed.' },
+  { id: 'seed', label: 'Seed + Swagger', t: { ep11: 3314 }, def: 'Seed fills the DB with test data; Swagger lists every API at /docs so you can try it.' },
+  { id: 'vu', label: 'Virtual users + sleep', t: { ep11: 4660 }, def: 'k6 VUs loop over the script. sleep(1) caps each at ~1 request/s, so requests ≈ VUs × seconds.' },
+  { id: 'pm2', label: 'PM2 cluster', t: { ep11: 4413 }, def: 'Runs one Node worker per CPU core on the same port and restarts a worker that crashes.' },
+  { id: 'revproxy', label: 'Reverse proxy', t: { ep11: 5274 }, def: 'Nginx in front: clients hit :8080, Nginx forwards to the app on :3000, which stays hidden.' },
+  { id: 'workerconn', label: 'worker_connections', t: { ep11: 5642 }, def: 'Nginx’s connection limit, 512 by default. Raise it before a big load test (he used 8192).' },
+  { id: 'gzip', label: 'gzip', t: { ep11: 5672 }, def: 'Compresses replies (up to ~70% smaller) at the cost of CPU.' },
+  { id: 'monitoring', label: 'Prometheus + Grafana', t: { ep11: 5734 }, def: 'Prometheus stores the numbers over time; Grafana draws dashboards from them.' },
 ];
 
 export const LINKS = [
@@ -52,4 +65,6 @@ export const LINKS = [
   ['exists', 'bloom'], ['exists', 'cuckoo'], ['exists', 'fuse'], ['exists', 'quotient'], ['exists', 'streams'],
   ['fp', 'fn'], ['fp', 'bloom'], ['bloom', 'counting'], ['bloom', 'hashprefix'],
   ['cuckoo', 'fingerprint'], ['cuckoo', 'mmap'], ['fuse', 'rebuild'], ['mmap', 'rebuild'],
+  ['guardrails', 'hooks'], ['lld', 'featurebased'], ['featurebased', 'layers'], ['lld', 'layers'], ['docker', 'seed'],
+  ['loadtest', 'vu'], ['vu', 'pm2'], ['pm2', 'lb'], ['lb', 'revproxy'], ['revproxy', 'workerconn'], ['revproxy', 'gzip'], ['loadtest', 'monitoring'],
 ];

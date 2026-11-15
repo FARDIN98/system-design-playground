@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EP-1.1 cheat sheet</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
+<div class="sheet">
+  <header>
+    <h1>EP-1.1 · LLD to production: guardrails, Fastify, k6, PM2 &amp; Nginx<br><small style="font-size:9pt;font-weight:500">Last-hour cheat sheet</small></h1>
+    <p>Ankit Jain · System Design EP-1.1<br><a href="https://www.youtube.com/watch?v=9xFPOmZZ4uQ">youtube.com/watch?v=9xFPOmZZ4uQ</a><br>“(general)” = standard practice, not from the video</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>The BookMyShow API, production-ready <small>· ▶ 1:21:46</small></h2>
+      <svg viewBox="0 0 360 104" role="img" aria-label="k6 or users to Nginx on port 8080, then PM2 with four Fastify workers on port 3000, each going route, schema, service, repository, then MongoDB; Prometheus and Grafana watch the app; everything runs in Docker">
+        <rect x="58" y="2" width="300" height="76" rx="4" fill="none" stroke="var(--a)" stroke-width=".8" stroke-dasharray="3 2"/><text x="354" y="10" text-anchor="end" class="s">🐳 Docker: same setup everywhere</text>
+        <rect class="bx" x="2" y="28" width="44" height="26" rx="3"/><text x="24" y="39" text-anchor="middle" class="b">k6 / users</text><text x="24" y="49" text-anchor="middle" class="s">:8080 only</text>
+        <rect class="hot" x="64" y="16" width="66" height="50" rx="3"/><text x="97" y="28" text-anchor="middle" class="b">Nginx :8080</text><text x="97" y="38" text-anchor="middle" class="s">reverse proxy · LB</text><text x="97" y="47" text-anchor="middle" class="s">gzip replies</text><text x="97" y="56" text-anchor="middle" class="s">8192 connections</text>
+        <rect class="bx" x="142" y="14" width="152" height="58" rx="3"/><text x="148" y="24" class="b">App :3000 (hidden) · PM2 × 4</text>
+        <rect class="ok" x="148" y="29" width="32" height="12" rx="2"/><text x="164" y="37.5" text-anchor="middle" class="s">W1</text>
+        <rect class="ok" x="184" y="29" width="32" height="12" rx="2"/><text x="200" y="37.5" text-anchor="middle" class="s">W2</text>
+        <rect class="ok" x="220" y="29" width="32" height="12" rx="2"/><text x="236" y="37.5" text-anchor="middle" class="s">W3</text>
+        <rect class="ok" x="256" y="29" width="32" height="12" rx="2"/><text x="272" y="37.5" text-anchor="middle" class="s">W4</text>
+        <text x="148" y="53" class="s">each worker: route → schema → service → repo</text><text x="148" y="64" class="s">no route → 404 · bad input → 400</text>
+        <rect class="bx" x="306" y="28" width="48" height="26" rx="3"/><text x="330" y="39" text-anchor="middle" class="b">MongoDB</text><text x="330" y="49" text-anchor="middle" class="s">seeded</text>
+        <path class="ln" d="M46,41 L63,41"/><path class="ln" d="M130,41 L141,41"/><path class="ln" d="M294,41 L305,41"/>
+        <rect class="ok" x="150" y="84" width="136" height="18" rx="3"/><text x="218" y="95.5" text-anchor="middle" class="b">Prometheus :9090 → Grafana</text>
+        <path class="ln g d" d="M218,84 L218,73"/>
+        <text x="2" y="90" class="s">Before any code: guardrails + hooks for the AI.</text><text x="2" y="99" class="s">Swagger at /docs to try every API.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>The 5 steps, for this episode</h2>
+      <ol class="steps">
+        <li><b>Requirements</b> <span class="t">3 min</span> · Browse cities → cinemas → shows. Survive launch-day load and crashes. Know one server’s limit.</li>
+        <li><b>Estimates</b> <span class="t">4 min</span> · Load-test one server first (k6). <span class="formula">requests ≈ VUs × s</span> means the test is the limit. Servers = peak ÷ one server, + 1 spare <span class="gen">(general)</span>.</li>
+        <li><b>HLD</b> <span class="t">8 min</span> · Client → Nginx (LB, HTTPS, gzip, rate limit) → app servers with PM2 × cores → MongoDB; Prometheus + Grafana watching.</li>
+        <li><b>Deep dive</b> <span class="t">8 min</span> · Request layers. Feature-based modules. Docker. The 512-connection limit and keep-alive.</li>
+        <li><b>Trade-offs</b> <span class="t">5 min</span> · Cores help only when CPU-bound. gzip: bytes vs CPU. Docker costs laptop speed. Engineering, not over-engineering.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>k6 runs, 15 s each <small>· ▶ 1:18:10</small></h2>
+      <svg viewBox="0 0 250 78" role="img" aria-label="Requests in 15 seconds: 2000 VUs with sleep 29,959; one core no sleep 126,270; PM2 times 4 about 157,000; Nginx with gzip 133,702">
+        <text x="2" y="9" class="s">2000 VUs + sleep(1)</text><rect x="86" y="3" width="21" height="8" rx="1" fill="var(--warn)"/><text x="111" y="10" class="b">29,959 (the test is the limit)</text>
+        <text x="2" y="25" class="s">1 core, no sleep</text><rect x="86" y="19" width="88" height="8" rx="1" fill="var(--a)"/><text x="178" y="26" class="b">126,270</text>
+        <text x="2" y="41" class="s">PM2 × 4 workers</text><rect x="86" y="35" width="110" height="8" rx="1" fill="var(--a)"/><text x="200" y="42" class="b">~157,000</text>
+        <text x="2" y="57" class="s">Nginx 512 conns</text><rect x="86" y="51" width="6" height="8" rx="1" fill="var(--bad)"/><text x="96" y="58" class="b">connection reset by peer</text>
+        <text x="2" y="73" class="s">Nginx 8192 + gzip</text><rect x="86" y="67" width="94" height="8" rx="1" fill="var(--b)"/><text x="184" y="74" class="b">133,702</text>
+      </svg>
+      <p style="margin:1mm 0 0">50 VUs → 750 and 500 → 7,500: with sleep(1), requests ≈ VUs × 15. 4 workers ≠ 4×: k6 shared the laptop. gzip: only 152 MB received.</p>
+    </section>
+
+    <section>
+      <h2>Numbers to remember</h2>
+      <table>
+        <tr><td>Guardrails before any code</td><td class="n">6</td></tr>
+        <tr><td>Guardrail test probes</td><td class="n">49, all as expected</td></tr>
+        <tr><td>allow-net unlock window</td><td class="n">30 minutes</td></tr>
+        <tr><td>TypeScript 7 (rewritten in Go)</td><td class="n">~10× faster</td></tr>
+        <tr><td>Seeded data</td><td class="n">5 cities · 6 cinemas · 9 shows</td></tr>
+        <tr><td>Cores he gives PM2</td><td class="n">4 of 10</td></tr>
+        <tr><td>Nginx default worker_connections</td><td class="n">512 (→ 8192)</td></tr>
+        <tr><td>gzip size cut</td><td class="n">up to ~70%</td></tr>
+        <tr><td>Ports</td><td class="n">app 3000 · Nginx 8080 · Prom 9090</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Make AI safe first <small>· ▶ 27:05</small></h2>
+      <p style="margin:0 0 1mm">Run nothing without OK · no git add/commit/push · no DB deletes · no file deletes · stay in the folder · no code before the plan is approved.</p>
+      <p style="margin:0"><b>Rules are requests; hooks are locks.</b> Hooks run in every mode (exit 2 blocks); “ask” is skipped in auto mode. Test them from a second session.</p>
+    </section>
+
+    <section>
+      <h2>4 places, 4 jobs <small>· ▶ 47:00</small></h2>
+      <table>
+        <tr><td><b>bootstrap/</b></td><td>what starts at boot: DB, logger, CORS, Helmet, Swagger</td></tr>
+        <tr><td><b>integrations/</b></td><td>outside services: SMS, WhatsApp, email, payment</td></tr>
+        <tr><td><b>modules/</b></td><td>features: cities/ = route, schema, service, repository, types</td></tr>
+        <tr><td><b>shared/</b></td><td>small helpers · config/env.ts loads env once</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Say it like this</h2>
+      <ul class="say">
+        <li>“Before scaling, I load-test one instance and check the test isn’t the bottleneck: if requests ≈ VUs × seconds, the script is sleeping.”</li>
+        <li>“Node uses one core, so I run PM2 in cluster mode, a worker per core; it also restarts crashed workers.”</li>
+        <li>“Nginx sits in front as a reverse proxy: one public port, HTTPS and gzip at the edge, the app port stays private.”</li>
+        <li>“Each feature module has its own route, schema, service and repository; only the repository touches the DB.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags: don’t say or do</h2>
+      <ul class="flags">
+        <li>Trusting a load-test number without reading the script (sleep, think time).</li>
+        <li>Adding cores when the bottleneck is somewhere else.</li>
+        <li>Plain <code>node</code> in production with nothing to restart it.</li>
+        <li>Exposing the app port instead of a reverse proxy in front.</li>
+        <li>Load-testing through Nginx with the default 512 connections.</li>
+        <li>An AI agent with push, DB deletes or network and only “ask first” rules.</li>
+        <li>Redis and Elasticsearch in bootstrap on day one (over-engineering).</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public video; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: flags content that would be clipped off the A4 page */
+{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
+ if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+</body>
+</html>

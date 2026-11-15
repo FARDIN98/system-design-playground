@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Load Lab Playground</title>
+<meta name="description" content="Change virtual users, sleep, PM2 workers and Nginx settings and see where the bottleneck moves; then sort risky AI actions and put each file in the right folder.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.ctl { display: grid; gap: 8px; margin-bottom: 12px; }
+.ctl .seg { margin: 0; align-items: center; }
+.ctl label.range { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 14px; }
+.ctl input[type=range] { flex: 1; min-width: 180px; accent-color: var(--a); }
+.seg .lbl { min-width: 128px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.stat small { display: block; color: var(--muted); font-size: 12.5px; }
+.stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.runs { list-style: none; padding: 0; margin: 0 0 8px; }
+.runs li { display: grid; grid-template-columns: 170px 1fr 74px; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 8px; }
+.runs li.match { background: var(--a-soft); }
+.runs button { all: unset; cursor: pointer; font-size: 13.5px; }
+.runs button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.runs .val { text-align: right; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.track { height: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 4px 4px 0; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--muted); border-radius: 0 4px 4px 0; transition: width .25s; }
+.runs li.you .track i { background: var(--a); }
+.runs li.you { font-weight: 600; }
+@media (max-width: 520px) { .runs li { grid-template-columns: 1fr 64px; } .runs .track { grid-column: 1 / -1; grid-row: 2; } .seg .lbl { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Load lab</h1>
+  <p class="sub">EP-1.1: k6 load tests on the BookMyShow API, then PM2 and Nginx. Every run lasts 15 seconds.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-lab" aria-controls="lab" aria-selected="true">🏋️ Load lab</button>
+    <button class="tab" role="tab" id="tab-guard" aria-controls="guard" aria-selected="false">🛡️ Guardrails</button>
+    <button class="tab" role="tab" id="tab-place" aria-controls="place" aria-selected="false">📁 Where does it go?</button>
+  </div>
+
+  <section id="lab" role="tabpanel" aria-labelledby="tab-lab">
+    <div class="ctl">
+      <label class="range">Virtual users (VUs): <b id="l-vus-out"></b><input type="range" id="l-vus" min="50" max="5000" step="50" aria-label="Virtual users"></label>
+      <div class="seg" role="group" aria-label="k6 script"><span class="lbl">k6 script:</span>
+        <button type="button" data-k="sleep" data-v="1">with sleep(1)</button><button type="button" data-k="sleep" data-v="0">no sleep</button></div>
+      <div class="seg" role="group" aria-label="Node processes"><span class="lbl">Node processes:</span>
+        <button type="button" data-k="workers" data-v="1">1 (plain node)</button><button type="button" data-k="workers" data-v="4">PM2 × 4</button></div>
+      <div class="seg" role="group" aria-label="In front of the app"><span class="lbl">In front of the app:</span>
+        <button type="button" data-k="nginx" data-v="0">nothing (:3000)</button><button type="button" data-k="nginx" data-v="1">Nginx (:8080)</button></div>
+      <div class="seg" role="group" aria-label="Nginx worker_connections" id="l-conns"><span class="lbl">worker_connections:</span>
+        <button type="button" data-k="conns" data-v="512">512 (default)</button><button type="button" data-k="conns" data-v="8192">8192</button></div>
+      <div class="seg" role="group" aria-label="gzip" id="l-gzip"><span class="lbl">gzip:</span>
+        <button type="button" data-k="gzip" data-v="0">off</button><button type="button" data-k="gzip" data-v="1">on</button></div>
+    </div>
+
+    <div class="banner" id="l-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Requests in 15 s</small><b id="l-req"></b></div>
+      <div class="stat"><small>Requests per second</small><b id="l-rps"></b></div>
+      <div class="stat"><small>Connection resets</small><b id="l-fail"></b></div>
+      <div class="stat"><small>Data received</small><b id="l-mb"></b></div>
+    </div>
+
+    <h2 style="font-size:14px;margin:4px 0 6px">Your run vs the video’s runs <span class="meta" style="font-weight:400">(click a run to load it)</span></h2>
+    <ul class="runs" id="l-runs"></ul>
+    <p class="note">A rough model calibrated to the six runs in the video (his laptop ran k6 and the app together, which is why 4 workers didn’t give 4×). Runs not in the video are estimates: Nginx without gzip assumes no Nginx overhead, and the size without gzip assumes gzip’s “up to ~70%” cut.</p>
+  </section>
+
+  <section id="guard" role="tabpanel" aria-labelledby="tab-guard" hidden></section>
+  <section id="place" role="tabpanel" aria-labelledby="tab-place" hidden></section>
+
+  <p class="try">Try: <b>Load lab</b> → load “2000 VUs + sleep(1)”, switch between 1 process and PM2 × 4 (nothing changes), then remove the sleep. Put Nginx in front with 512 connections, then raise it and turn on gzip. <b>Guardrails</b> → 11 risky AI actions. <b>Where does it go?</b> → 12 files and layers.
+  From EP-1.1 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=9xFPOmZZ4uQ" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+import { fmtNum, fmtBytes } from '../lib.js';
+import { mount, CSS } from '../challenge.js';
+import { GUARD, PLACE } from './scenarios.js';
+
+const $ = id => document.getElementById(id);
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+
+const st = { ...S.RUNS.find(r => r.id === 'v2000').cfg };
+const MAX = Math.max(...S.RUNS.map(r => r.requests));
+const MSG = {
+  test: r => ['warn', `🟠 <b>The test is the limit, not the server.</b> sleep(1) lets each VU send about 1 request per second: ${fmtNum(st.vus)} × 15 ≈ ${fmtNum(r.testCap)}. More cores change nothing. Remove the sleep.`],
+  core: () => ['bad', '🔴 <b>One CPU core is the limit.</b> Node uses one core by default. Run it with PM2 × 4.'],
+  cpu: () => ['good', `✅ <b>4 workers share the port.</b> Not 4× more, because k6 and the app shared his laptop.${st.nginx ? ' (Nginx without gzip: an estimate, not run in the video.)' : ''}`],
+  gzip: r => ['good', `✅ <b>Through Nginx + gzip.</b> gzip costs CPU, so a bit fewer requests than direct, but only ${fmtBytes(r.bytes)} travel.`],
+  conns: r => ['bad', `🔴 <b>${Math.round(r.blocked * 100)}% of VUs get “connection reset by peer”.</b> Nginx allows ${fmtNum(st.conns)} connections, but ${fmtNum(st.vus)} VUs are hitting it. Raise worker_connections.`],
+};
+
+function draw() {
+  $('l-vus').value = st.vus; $('l-vus-out').textContent = fmtNum(st.vus);
+  document.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', String(+st[b.dataset.k]) === b.dataset.v));
+  $('l-conns').hidden = $('l-gzip').hidden = !st.nginx;
+  const r = S.run(st), [kind, html] = MSG[r.limit](r);
+  const msg = $('l-msg'); msg.className = `banner ${kind}`; msg.innerHTML = html;
+  $('l-req').textContent = fmtNum(r.requests);
+  $('l-rps').textContent = fmtNum(r.perSec);
+  $('l-fail').textContent = r.blocked ? `${Math.round(r.blocked * 100)}% of VUs` : 'none';
+  $('l-mb').textContent = fmtBytes(r.bytes);
+  const bar = (n, cls, label, id) => `<li class="${cls}"><span>${id ? `<button type="button" data-run="${id}">${label}</button>` : label}</span>
+    <div class="track" aria-hidden="true"><i style="width:${Math.min(100, (n / MAX) * 100)}%"></i></div><span class="val">${fmtNum(n)}</span></li>`;
+  $('l-runs').innerHTML = bar(r.requests, 'you', 'Your run') +
+    S.RUNS.map(v => bar(v.requests, S.sameCfg(v.cfg, st) ? 'match' : '', v.label, v.id)).join('');
+}
+$('l-vus').addEventListener('input', e => { st.vus = +e.target.value; draw(); });
+document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.k; st[k] = k === 'workers' || k === 'conns' ? +b.dataset.v : b.dataset.v === '1'; draw();
+}));
+$('l-runs').addEventListener('click', e => { const b = e.target.closest('[data-run]'); if (b) { Object.assign(st, S.RUNS.find(r => r.id === b.dataset.run).cfg); draw(); } });
+draw();
+
+const style = document.createElement('style'); style.textContent = CSS; document.head.append(style);
+mount($('guard'), GUARD);
+mount($('place'), PLACE);
+</script>
+</body>
+</html>
