@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling and CAP Playground</title>
+<meta name="description" content="Crash a server in vertical vs horizontal scaling, and cut the network between two database nodes to see CAP in action.">
+<style>
+:root {
+  --bg: #ffffff; --surface: #f6f6f3; --ink: #1d1d1b; --muted: #6b6a63; --line: #deddd6;
+  --a: #2a78d6; --a-soft: #dbe8f8; --b: #1baf7a; --b-soft: #d6f2e7;
+  --good: #0a7d34; --good-bg: #e3f4e8; --warn: #9a6300; --warn-bg: #fdf1d8; --bad: #c62828; --bad-bg: #fbe4e4;
+  --focus: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #191919; --surface: #242423; --ink: #ededea; --muted: #a3a29b; --line: #3a3a37;
+    --a: #5c9df0; --a-soft: #1d3350; --b: #3cc893; --b-soft: #173b2e;
+    --good: #5fd08a; --good-bg: #16301f; --warn: #f0b545; --warn-bg: #3a2c10; --bad: #f07a7a; --bad-bg: #3d1a1a;
+    --focus: #5c9df0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #191919; --surface: #242423; --ink: #ededea; --muted: #a3a29b; --line: #3a3a37;
+  --a: #5c9df0; --a-soft: #1d3350; --b: #3cc893; --b-soft: #173b2e;
+  --good: #5fd08a; --good-bg: #16301f; --warn: #f0b545; --warn-bg: #3a2c10; --bad: #f07a7a; --bad-bg: #3d1a1a;
+  --focus: #5c9df0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 14px 16px 18px; }
+h1 { font-size: 18px; margin: 0 0 2px; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.tabs, .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab, .seg button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 999px; font: inherit; font-weight: 600; cursor: pointer; }
+.tab[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--a); border-color: var(--a); color: #fff; }
+.seg button { font-weight: 500; padding: 5px 12px; font-size: 14px; }
+button.act { font: inherit; font-size: 14px; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+button.act:disabled, .seg button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+label.users { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-bottom: 10px; font-size: 14px; }
+label.users input { flex: 1 1 200px; accent-color: var(--a); }
+label.users b { font-variant-numeric: tabular-nums; min-width: 82px; }
+.banner { padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--line); background: var(--surface); min-height: 40px; }
+.banner.good { background: var(--good-bg); border-color: var(--good); }
+.banner.warn { background: var(--warn-bg); border-color: var(--warn); }
+.banner.bad { background: var(--bad-bg); border-color: var(--bad); }
+.stage { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; }
+.who { border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; font-size: 13px; background: var(--surface); }
+.who b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+.servers { display: grid; gap: 6px; }
+.servers.many { grid-template-columns: repeat(2, 1fr); }
+.srv { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--bg); }
+.srv.overloaded, .srv.down { border-color: var(--bad); background: var(--bad-bg); }
+.srv.busy { border-color: var(--warn); background: var(--warn-bg); }
+.srv.big { padding: 14px 12px; }
+.srv .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 14px; }
+.srv .top small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 10px; border-radius: 5px; background: var(--surface); border: 1px solid var(--line); margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 5px; background: var(--good); transition: width .25s; }
+.busy .bar i { background: var(--warn); } .overloaded .bar i { background: var(--bad); }
+.srv button.act { padding: 2px 8px; font-size: 12px; }
+.lb { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 4px 0 8px; }
+.nodes { display: grid; grid-template-columns: 1fr 70px 1fr; gap: 6px; align-items: stretch; margin-bottom: 10px; }
+.node { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); }
+.node h3 { margin: 0; font-size: 14px; }
+.node h3 small { color: var(--muted); font-weight: 500; }
+.node .val { font: 700 26px ui-monospace, Menlo, monospace; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.node .val.neg { color: var(--bad); }
+.node .btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.link { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 11.5px; text-align: center; color: var(--good); }
+.link .wire { width: 100%; height: 0; border-top: 4px solid var(--good); margin: 4px 0; }
+.link.cut { color: var(--bad); }
+.link.cut .wire { border-top: 4px dashed var(--bad); }
+ol.log { margin: 0 0 8px; padding-left: 20px; font-size: 13px; }
+ol.log li { margin: 1px 0; }
+.try { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
+.try a { color: var(--focus); }
+[hidden] { display: none !important; }
+@media (max-width: 560px) {
+  .stage { grid-template-columns: 1fr; }
+  .servers.many { grid-template-columns: 1fr; }
+  .nodes { grid-template-columns: 1fr 44px 1fr; }
+  .node .val { font-size: 21px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Scaling and CAP playground</h1>
+  <p class="sub">Two ideas from EP-1. Click things, break things, watch what happens.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-scale" aria-controls="scale" aria-selected="true">Vertical vs horizontal</button>
+    <button class="tab" role="tab" id="tab-cap" aria-controls="cap" aria-selected="false">CAP theorem</button>
+  </div>
+
+  <section id="scale" role="tabpanel" aria-labelledby="tab-scale">
+    <label class="users">Users right now <b id="s-users-out"></b>
+      <input type="range" id="s-users" min="10000" max="300000" step="10000" value="100000" aria-describedby="s-note">
+    </label>
+    <div class="seg" role="group" aria-label="Scaling style">
+      <button type="button" data-mode="v" aria-pressed="true">⬆ Vertical: one bigger machine</button>
+      <button type="button" data-mode="h" aria-pressed="false">➡ Horizontal: more machines</button>
+    </div>
+    <div class="row" id="s-vctl">
+      <span class="note" style="margin:0">Machine size:</span>
+      <span class="seg" id="s-sizes" role="group" aria-label="Machine size" style="margin:0"></span>
+    </div>
+    <div class="row" id="s-hctl" hidden>
+      <span class="note" style="margin:0">Servers behind the load balancer:</span>
+      <button class="act" type="button" id="s-minus" aria-label="Remove a server">−</button>
+      <b id="s-count"></b>
+      <button class="act" type="button" id="s-plus" aria-label="Add a server">+</button>
+    </div>
+    <div class="banner" id="s-msg" role="status" aria-live="polite"></div>
+    <div class="stage">
+      <div class="who">👥<b id="s-who"></b>users</div>
+      <div id="s-right"></div>
+    </div>
+    <p class="note" id="s-note">Toy numbers: 1 core ≈ 5,000 users (made up). Real capacity comes from load tests; the series covers capacity planning later.</p>
+  </section>
+
+  <section id="cap" role="tabpanel" aria-labelledby="tab-cap" hidden>
+    <div class="seg" role="group" aria-label="Database choice">
+      <button type="button" data-cap="CP" aria-pressed="true">C + P: correct or nothing</button>
+      <button type="button" data-cap="AP" aria-pressed="false">A + P: always answer</button>
+    </div>
+    <div class="banner" id="c-msg" role="status" aria-live="polite"></div>
+    <div class="nodes">
+      <div class="node" id="n-mumbai"></div>
+      <div class="link" id="c-link"></div>
+      <div class="node" id="n-delhi"></div>
+    </div>
+    <div class="row">
+      <button class="act" type="button" id="c-net">✂️ Cut the network</button>
+      <button class="act" type="button" id="c-reset">Reset</button>
+    </div>
+    <ol class="log" id="c-log"></ol>
+  </section>
+
+  <p class="try">Try: <b>Vertical</b> → drag users to 1 lakh, grow the machine to 32 cores, then crash it. <b>Horizontal</b> → crash one of 4 servers. <b>CAP</b> → cut the network, pay at Mumbai, read at Delhi; switch to A + P and pay ₹100 on both sides, then heal.
+  From EP-1 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=DCYaJb8Bzdk" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('en-IN');
+const pct = x => `${Math.round(x * 100)}%`;
+const money = b => (b < 0 ? `−₹${-b}` : `₹${b}`);
+
+// ---------- tabs ----------
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t;
+  o.setAttribute('aria-selected', on);
+  $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+
+// ---------- scaling ----------
+const st = { users: 100000, mode: 'v', size: 0, vDown: false, down: [false, false, false, false] };
+
+S.VERTICAL_SIZES.forEach((z, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.size = i; b.textContent = `${z.cores} cores · ${z.ram} GB`;
+  b.addEventListener('click', () => { st.size = i; drawScale(); });
+  $('s-sizes').append(b);
+});
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => { st.mode = b.dataset.mode; drawScale(); }));
+$('s-users').addEventListener('input', e => { st.users = +e.target.value; drawScale(); });
+$('s-minus').addEventListener('click', () => { if (st.down.length > 1) st.down.pop(); drawScale(); });
+$('s-plus').addEventListener('click', () => { if (st.down.length < S.MAX_SERVERS) st.down.push(false); drawScale(); });
+$('s-right').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  if (b.dataset.act === 'vcrash') st.vDown = !st.vDown;
+  else st.down[+b.dataset.i] = !st.down[+b.dataset.i];
+  drawScale();
+});
+
+function srvBox(title, r, load, btn, big) {
+  const state = r === 'down' ? 'down' : load > 1 ? 'overloaded' : load > 0.8 ? 'busy' : 'ok';
+  const label = state === 'down' ? '💥 down' : `load ${pct(load)}`;
+  return `<div class="srv ${state} ${big ? 'big' : ''}"><div class="top"><span>🖥 <b>${title}</b> <small>${label}</small></span>${btn}</div>
+    ${state === 'down' ? '' : `<div class="bar" aria-hidden="true"><i style="width:${Math.min(load, 1) * 100}%"></i></div>`}</div>`;
+}
+
+function drawScale() {
+  $('s-users-out').textContent = fmt(st.users);
+  $('s-who').textContent = fmt(st.users);
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === st.mode));
+  document.querySelectorAll('[data-size]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.size === st.size));
+  $('s-vctl').hidden = st.mode !== 'v';
+  $('s-hctl').hidden = st.mode !== 'h';
+  $('s-count').textContent = st.down.length;
+  const msg = $('s-msg');
+  if (st.mode === 'v') {
+    const z = S.VERTICAL_SIZES[st.size];
+    const r = S.vertical(st.users, z, st.vDown);
+    $('s-right').innerHTML = srvBox(`${z.cores} cores · ${z.ram} GB`, st.vDown ? 'down' : 'up', r.load,
+      `<button class="act" type="button" data-act="vcrash">${st.vDown ? 'Restart' : '💥 Crash it'}</button>`, true);
+    if (r.state === 'down') setMsg(msg, 'bad', `💥 <b>The only server is down → all bookings stop.</b> ${fmt(st.users)} users get errors. This is a <b>single point of failure</b>.`);
+    else if (r.state === 'overloaded') setMsg(msg, 'bad', `🔴 Overloaded (${pct(r.load)}). <b>${fmt(r.failed)} users</b> can’t book. Try a bigger machine.`);
+    else setMsg(msg, r.state === 'busy' ? 'warn' : 'good', `${r.state === 'busy' ? '🟠 Busy' : '✅ Fine'}: all ${fmt(st.users)} users served on one machine (${pct(r.load)}). Now crash it.`);
+  } else {
+    const r = S.horizontal(st.users, st.down);
+    const per = S.capacity(S.H_SERVER.cores);
+    const boxes = st.down.map((d, i) => srvBox(`Server ${i + 1} · ${S.H_SERVER.cores} cores · ${S.H_SERVER.ram} GB`, d ? 'down' : 'up', r.alive ? st.users / r.alive / per : 0,
+      `<button class="act" type="button" data-act="h" data-i="${i}">${d ? 'Restart' : '💥 Crash'}</button>`)).join('');
+    $('s-right').innerHTML = `<div class="lb">⚖️ Load balancer → ${r.alive} of ${st.down.length} servers up${r.alive ? `, about ${fmt(r.perServer)} users each` : ''}</div><div class="servers ${st.down.length > 4 ? 'many' : ''}">${boxes}</div>`;
+    if (r.state === 'down') setMsg(msg, 'bad', '💥 Every server is down. Even a team can fail if all of them crash.');
+    else if (r.state === 'overloaded') setMsg(msg, 'bad', `🔴 ${r.alive} server${r.alive > 1 ? 's' : ''} can’t carry ${fmt(st.users)} users (${pct(r.load)}). <b>${fmt(r.failed)}</b> get errors. Add a server.`);
+    else setMsg(msg, r.state === 'busy' ? 'warn' : 'good', `${r.state === 'busy' ? '🟠 Busy' : '✅ Fine'}: all ${fmt(st.users)} users served (${pct(r.load)}).${r.alive < st.down.length ? ' A server is down, and <b>the rest still serve</b>: no single point of failure.' : ' Now crash one server.'}`);
+  }
+}
+
+function setMsg(el, kind, html) { el.className = `banner ${kind}`; el.innerHTML = html; }
+
+// ---------- CAP ----------
+let c = S.createCap(500, 'CP');
+let log = [];
+const NAME = { mumbai: 'Mumbai', delhi: 'Delhi' };
+
+function step(kind, html) {
+  log.push(html);
+  log = log.slice(-6);
+  setMsg($('c-msg'), kind, html);
+  drawCap();
+}
+
+document.querySelectorAll('[data-cap]').forEach(b => b.addEventListener('click', () => {
+  if (S.setMode(c, b.dataset.cap)) step('', b.dataset.cap === 'CP'
+    ? '<b>C + P:</b> during a split, a node that can’t confirm the latest data refuses. Mumbai is the main (primary) node.'
+    : '<b>A + P:</b> during a split, both nodes keep answering, even if their data is old.');
+}));
+$('c-net').addEventListener('click', () => {
+  if (c.linked) { S.cut(c); step('warn', '✂️ The network between Mumbai and Delhi is cut. This is a <b>partition</b>.'); return; }
+  const r = S.heal(c);
+  if (r.overspent) step('bad', `🔗 Healed and synced: balance <b>${money(r.balance)}</b>. <b>Overspent!</b> Both sides accepted a payment they couldn’t both afford. This is why money needs <b>C</b>.`);
+  else step('good', `🔗 Healed. Delhi syncs, and both nodes say <b>₹${r.balance}</b> again.`);
+});
+$('c-reset').addEventListener('click', () => { c = S.createCap(500, c.mode); log = []; resetCapMsg(); drawCap(); });
+document.querySelector('.nodes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-node]');
+  if (!b) return;
+  const n = b.dataset.node;
+  if (b.dataset.op === 'pay') {
+    const r = S.pay(c, n, 100);
+    if (r.ok) step('good', `💸 Paid ₹100 at ${NAME[n]}. ${c.linked ? 'Both nodes updated' : `Only ${NAME[n]} knows`}: ₹${r.balance}.`);
+    else if (r.reason === 'refused') step('warn', `⛔ ${NAME[n]} refuses the payment: it can’t reach the primary, so it won’t risk wrong data. <b>Consistent, but not available.</b>`);
+    else step('bad', `❌ Not enough balance at ${NAME[n]} (₹${r.balance}).`);
+  } else {
+    const r = S.read(c, n);
+    if (!r.ok) step('warn', `⛔ “Try again later.” ${NAME[n]} won’t show a balance it can’t confirm. <b>Consistent, but not available.</b>`);
+    else if (r.stale) step('warn', `👀 ${NAME[n]} answers <b>₹${r.balance}</b>, but that’s <b>old</b>. <b>Available, but not consistent.</b> Fine for likes, bad for money.`);
+    else step('good', `👀 ${NAME[n]} answers ₹${r.balance}. Correct.`);
+  }
+});
+
+function resetCapMsg() { setMsg($('c-msg'), '', 'Both nodes hold ₹500. Pay or read on either side, then cut the network and try again.'); }
+
+function drawCap() {
+  document.querySelectorAll('[data-cap]').forEach(b => { b.setAttribute('aria-pressed', b.dataset.cap === c.mode); b.disabled = !c.linked && b.dataset.cap !== c.mode; });
+  S.NODES.forEach(n => {
+    const b = S.balance(c, n);
+    const role = c.mode === 'CP' ? (n === 'mumbai' ? ' <small>(primary)</small>' : ' <small>(replica)</small>') : '';
+    $(`n-${n}`).innerHTML = `<h3>🏢 ${NAME[n]}${role}</h3><div class="val ${b < 0 ? 'neg' : ''}">${money(b)}</div>
+      <div class="btns"><button class="act" type="button" data-node="${n}" data-op="pay">Pay ₹100</button><button class="act" type="button" data-node="${n}" data-op="read">Read</button></div>`;
+  });
+  const l = $('c-link');
+  l.className = `link ${c.linked ? '' : 'cut'}`;
+  l.innerHTML = `<span>${c.linked ? 'synced' : '✂️ cut'}</span><span class="wire"></span>`;
+  $('c-net').textContent = c.linked ? '✂️ Cut the network' : '🔗 Heal the network';
+  $('c-log').innerHTML = log.map(h => `<li>${h}</li>`).join('');
+}
+
+drawScale();
+resetCapMsg();
+drawCap();
+</script>
+</body>
+</html>
