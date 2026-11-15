@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview Practice</title>
+<meta name="description" content="Interviewer follow-up drills, back-of-envelope estimation drills and draw-then-compare design practice for the system design series.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.q { font-size: 16.5px; font-weight: 600; margin: 4px 0 10px; }
+.timer { font: 700 30px ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.timer.low { color: var(--bad); }
+.pts { list-style: none; padding: 0; margin: 0 0 10px; }
+.pts li { margin: 4px 0; }
+.pts label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.pts input { margin-top: 3px; accent-color: var(--good); width: 17px; height: 17px; }
+.work { font-size: 14px; }
+.ans { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ans input { width: 160px; }
+.canvas-wrap { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; touch-action: none; margin-bottom: 8px; }
+.canvas-wrap canvas { display: block; width: 100%; height: 360px; cursor: crosshair; }
+.ref img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; margin-bottom: 8px; }
+.tools button[aria-pressed="true"] { background: var(--a); border-color: var(--a); color: #fff; }
+.hist { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Interview practice</h1>
+  <p class="sub">Practice the way the round feels: answer out loud, under time, then check yourself.</p>
+
+  <div class="seg" role="group" aria-label="Episode">
+    <span class="lbl">Episode:</span>
+    <button type="button" data-ep="ep1">EP-1</button>
+    <button type="button" data-ep="ep4">EP-4</button>
+    <button type="button" data-ep="all">Both</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-fu" aria-controls="fu" aria-selected="true">🔥 Follow-ups</button>
+    <button class="tab" role="tab" id="tab-dr" aria-controls="dr" aria-selected="false">🧮 Estimate drill</button>
+    <button class="tab" role="tab" id="tab-draw" aria-controls="draw" aria-selected="false">✏️ Draw it</button>
+  </div>
+
+  <section id="fu" role="tabpanel" aria-labelledby="tab-fu"></section>
+  <section id="dr" role="tabpanel" aria-labelledby="tab-dr" hidden></section>
+
+  <section id="draw" role="tabpanel" aria-labelledby="tab-draw" hidden>
+    <div class="row"><label class="meta" for="d-prob">Problem</label><select id="d-prob" style="flex:1 1 240px"></select></div>
+    <div class="row">
+      <span class="timer" id="d-time" aria-live="off">10:00</span>
+      <button class="act primary" type="button" id="d-start">▶ Start 10 minutes</button>
+      <span class="meta">Draw here, or on paper. Then reveal.</span>
+    </div>
+    <div class="row tools" role="group" aria-label="Drawing tools">
+      <button class="act" type="button" data-tool="pen" aria-pressed="true">✏️ Pen</button>
+      <button class="act" type="button" data-tool="erase" aria-pressed="false">🧽 Eraser</button>
+      <button class="act" type="button" id="d-clear">Clear</button>
+    </div>
+    <div class="canvas-wrap"><canvas id="d-canvas" aria-label="Drawing area for your design"></canvas></div>
+    <div class="row"><button class="act primary" type="button" id="d-reveal">👀 Reveal the reference</button></div>
+    <div id="d-out"></div>
+  </section>
+
+  <p class="try">Tip: in a real round, say your assumptions out loud, give numbers, and name one trade-off for every choice. These drills train exactly that.</p>
+</main>
+
+<script type="module">
+import ep1 from '../data/ep1.js';
+import ep4 from '../data/ep4.js';
+import * as L from '../lib.js';
+
+const EPS = { ep1, ep4 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+// ---------- episode + tabs ----------
+const qs = new URLSearchParams(location.search);
+let sel = qs.get('ep') === '4' ? ['ep4'] : qs.get('ep') === 'all' ? ['ep1', 'ep4'] : ['ep1'];
+document.querySelectorAll('[data-ep]').forEach(b => b.addEventListener('click', () => {
+  sel = b.dataset.ep === 'all' ? ['ep1', 'ep4'] : [b.dataset.ep];
+  const u = new URL(location.href); u.searchParams.set('ep', b.dataset.ep === 'all' ? 'all' : b.dataset.ep.slice(2));
+  try { history.replaceState(null, '', u); } catch { /* sandboxed */ }
+  drawAll();
+}));
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(o => { const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on; });
+  if (t.id === 'tab-draw') sizeCanvas();
+}));
+
+// one countdown at a time
+let tick = null;
+function countdown(sec, onTick, onEnd) {
+  clearInterval(tick); let left = sec; onTick(left);
+  tick = setInterval(() => { left--; onTick(left); if (left <= 0) { clearInterval(tick); onEnd(); } }, 1000);
+}
+
+// ---------- 🔥 follow-ups ----------
+const FKEY = 'sd-followups-v1';
+let fstate = L.load(FKEY, {});
+let fu = null; // { list, i, phase: 'ask'|'check', left }
+const pool = () => sel.flatMap(e => EPS[e].followups.map(f => ({ ...f, id: `${e}:${f.id}`, ep: EPS[e] })));
+function fuNew() { fu = { list: L.followQueue(pool(), fstate), i: 0, phase: 'ask' }; }
+function fuDraw() {
+  if (!fu) fuNew();
+  const f = fu.list[fu.i], s = fstate[f.id];
+  const tried = pool().filter(x => fstate[x.id]), weak = tried.filter(x => fstate[x.id].score < L.WEAK);
+  const head = `<div class="meta">${fu.i + 1} of ${fu.list.length} · ${esc(f.ep.name)}${s ? ` · last time ${Math.round(s.score * 100)}%` : ' · new'} · tried ${tried.length}/${pool().length}, weak ${weak.length}</div>`;
+  if (fu.phase === 'ask') {
+    $('fu').innerHTML = `${head}<div class="card"><div class="meta">The interviewer pushes back:</div><p class="q">“${esc(f.q)}”</p>
+      <div class="row"><span class="timer" id="f-time">1:30</span><button class="act primary" type="button" data-f="start">▶ Answer out loud (90 s)</button><button class="act" type="button" data-f="done">I’m done → check</button></div></div>
+      <p class="note">Speak as if the interviewer is listening: say what breaks, what you’d do, and the trade-off.</p>`;
+  } else {
+    $('fu').innerHTML = `${head}<div class="card"><p class="q">“${esc(f.q)}”</p><div class="meta" style="margin-bottom:6px">Tick each point you actually said:</div>
+      <ul class="pts">${f.points.map((p, k) => `<li><label><input type="checkbox" data-k="${k}"> <span>${esc(p)}</span></label></li>`).join('')}</ul>
+      <div class="row"><button class="act primary" type="button" data-f="save">Save score → next</button>
+      <a href="https://www.youtube.com/watch?v=${f.ep.video}&t=${f.t}s" target="_blank" rel="noopener">▶ Rewatch this part (${mmss(f.t)})</a></div></div>
+      <p class="note">Below 60% counts as weak; weak ones come back first next time. Saved on this device.</p>`;
+  }
+}
+$('fu').addEventListener('click', e => {
+  const b = e.target.closest('button[data-f]'); if (!b) return;
+  const f = fu.list[fu.i];
+  if (b.dataset.f === 'start') { b.disabled = true; countdown(90, l => { const t = $('f-time'); if (t) { t.textContent = mmss(Math.max(0, l)); t.classList.toggle('low', l <= 15); } }, () => { fu.phase = 'check'; fuDraw(); }); }
+  if (b.dataset.f === 'done') { clearInterval(tick); fu.phase = 'check'; fuDraw(); $('fu').querySelector('input')?.focus(); }
+  if (b.dataset.f === 'save') {
+    const ticked = $('fu').querySelectorAll('.pts input:checked').length;
+    fstate[f.id] = { score: ticked / f.points.length, at: Date.now() }; L.save(FKEY, fstate);
+    fu.i = (fu.i + 1) % fu.list.length; if (fu.i === 0) fuNew(); fu.phase = 'ask'; fuDraw();
+    $('fu').querySelector('[data-f=start]')?.focus();
+  }
+});
+
+// ---------- 🧮 estimate drill ----------
+let dr = null; // { d, guess, result }
+let drScore = { right: 0, done: 0 };
+const kinds = () => sel.flatMap(e => L.DRILLS_BY_EP[e]);
+function drNew() { const k = kinds(), kind = k[Math.floor(Math.random() * k.length)]; dr = { d: L.DRILLS[kind](Math.random), result: null }; }
+const showNum = v => (v >= 100 ? L.fmtNum(v) : String(+v.toFixed(2)));
+function drDraw(focus = false) {
+  if (!dr) drNew();
+  const { d } = dr, r = dr.result;
+  $('dr').innerHTML = `<div class="meta">Score ${drScore.right}/${drScore.done} · within ±25% counts, like a real back-of-envelope answer</div>
+    <div class="card"><p class="q" style="font-weight:500">${d.q}</p>
+    <form class="ans" id="dr-form"><input type="number" step="any" id="dr-in" aria-label="Your answer in ${esc(d.unit)}" ${r ? 'disabled' : ''} value="${r ? esc(dr.guess) : ''}" placeholder="your answer"> <span>${esc(d.unit)}</span>
+    ${r ? '' : '<button class="act primary" type="submit">Check</button>'}</form></div>
+    ${r ? `<div class="banner ${r === 'right' ? 'good' : 'bad'}" role="status">${r === 'right' ? '✅ <b>Close enough.</b>' : '❌ <b>Off by more than 25%.</b>'} Answer ≈ <b>${showNum(d.answer)} ${esc(d.unit)}</b>.<div class="work">${d.working}</div></div>
+      <button class="act primary" type="button" id="dr-next">Next problem →</button>` : '<p class="note">Round numbers are fine. Work it out on paper or in your head first.</p>'}`;
+  if (!r && focus) $('dr-in').focus();
+}
+$('dr').addEventListener('submit', e => {
+  e.preventDefault();
+  const g = parseFloat($('dr-in').value);
+  if (!Number.isFinite(g)) { $('dr-in').focus(); return; }
+  dr.guess = g; dr.result = L.within(dr.d.answer, g) ? 'right' : 'wrong';
+  drScore.done++; if (dr.result === 'right') drScore.right++;
+  drDraw(); $('dr-next').focus();
+});
+$('dr').addEventListener('click', e => { if (e.target.id === 'dr-next') { drNew(); drDraw(true); } });
+
+// ---------- ✏️ draw it ----------
+const DKEY = 'sd-draw-v1';
+let dstate = L.load(DKEY, {});
+const probs = () => sel.flatMap(e => EPS[e].problems.map(p => ({ ...p, ep: EPS[e], key: `${e}:${p.id}` })));
+const cv = $('d-canvas'), ctx = cv.getContext('2d');
+let tool = 'pen', drawing = false, last = null;
+function sizeCanvas() {
+  const r = cv.getBoundingClientRect(); if (!r.width) return;
+  const img = cv.width ? ctx.getImageData(0, 0, cv.width, cv.height) : null, ratio = window.devicePixelRatio || 1;
+  cv.width = r.width * ratio; cv.height = r.height * ratio;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.lineCap = ctx.lineJoin = 'round';
+  if (img) ctx.putImageData(img, 0, 0);
+}
+function pt(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('pointerdown', e => { drawing = true; last = pt(e); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const p = pt(e);
+  ctx.globalCompositeOperation = tool === 'erase' ? 'destination-out' : 'source-over';
+  ctx.strokeStyle = '#1d1d1b'; ctx.lineWidth = tool === 'erase' ? 22 : 2.5;
+  ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
+});
+['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { drawing = false; }));
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
+  tool = b.dataset.tool; document.querySelectorAll('[data-tool]').forEach(o => o.setAttribute('aria-pressed', o === b));
+}));
+$('d-clear').addEventListener('click', () => ctx.clearRect(0, 0, cv.width, cv.height));
+window.addEventListener('resize', sizeCanvas);
+$('d-start').addEventListener('click', () => countdown(600, l => { $('d-time').textContent = mmss(Math.max(0, l)); $('d-time').classList.toggle('low', l <= 60); },
+  () => { $('d-time').textContent = '⏰ 0:00'; $('d-reveal').focus(); }));
+function drawProbSelect() {
+  $('d-prob').innerHTML = probs().map((p, i) => `<option value="${i}">${esc(p.ep.name)}: ${esc(p.title)}</option>`).join('');
+}
+function drawHistory(p) {
+  const att = dstate[p.key] || [];
+  if (!att.length) return '<p class="hist">No attempts yet.</p>';
+  const miss = L.oftenMissed(p.checklist, att).map(id => p.checklist.find(c => c.id === id).label);
+  const best = Math.max(...att.map(a => a.ticked.length));
+  return `<p class="hist">${att.length} attempt${att.length > 1 ? 's' : ''} · best ${best}/${p.checklist.length}${miss.length ? ` · <b>${att.length > 1 ? 'you often forget' : 'missed last time'}:</b> ${miss.map(esc).join(', ')}` : ''}</p>`;
+}
+$('d-reveal').addEventListener('click', () => {
+  clearInterval(tick);
+  const p = probs()[+$('d-prob').value];
+  $('d-out').innerHTML = `<div class="card ref"><h3 style="margin:0 0 8px;font-size:15px">Reference: ${esc(p.title)}</h3>
+    <img src="${esc(p.img)}" alt="Reference design for ${esc(p.title)}">
+    <div class="meta" style="margin-bottom:6px">Tick every part your drawing has:</div>
+    <ul class="pts">${p.checklist.map(c => `<li><label><input type="checkbox" value="${c.id}"> <span>${esc(c.label)}</span></label></li>`).join('')}</ul>
+    <div class="row"><button class="act primary" type="button" id="d-save">Save my score</button>
+    <a href="https://www.youtube.com/watch?v=${p.ep.video}&t=${p.t}s" target="_blank" rel="noopener">▶ Rewatch the design (${mmss(p.t)})</a></div>
+    <div id="d-hist">${drawHistory(p)}</div></div>`;
+  $('d-out').scrollIntoView({ block: 'nearest' });
+});
+$('d-out').addEventListener('click', e => {
+  if (e.target.id !== 'd-save') return;
+  const p = probs()[+$('d-prob').value];
+  const ticked = [...$('d-out').querySelectorAll('.pts input:checked')].map(i => i.value);
+  (dstate[p.key] ||= []).push({ ticked, at: Date.now() }); L.save(DKEY, dstate);
+  e.target.disabled = true; e.target.textContent = `Saved: ${ticked.length}/${p.checklist.length}`;
+  $('d-hist').innerHTML = drawHistory(p);
+});
+
+// ---------- all ----------
+function drawAll() {
+  const key = sel.length > 1 ? 'all' : sel[0];
+  document.querySelectorAll('[data-ep]').forEach(b => b.setAttribute('aria-pressed', b.dataset.ep === key));
+  clearInterval(tick); fuNew(); fuDraw(); drNew(); drDraw(); drawProbSelect(); $('d-out').innerHTML = ''; $('d-time').textContent = '10:00';
+}
+drawAll();
+</script>
+</body>
+</html>

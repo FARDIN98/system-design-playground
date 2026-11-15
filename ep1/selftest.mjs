@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import * as S from './sim.js';
+import { validate } from '../challenge.js';
+import { SCENARIOS } from './scenarios.js';
 
 const L = 100000; // 1 lakh users
 const [v4, , , v32] = S.VERTICAL_SIZES;
@@ -44,5 +46,10 @@ assert.deepEqual(S.read(c, 'delhi'), { ok: true, balance: 100, stale: true });
 assert.ok(S.pay(c, 'delhi', 100).ok);
 assert.deepEqual(S.heal(c), { balance: -100, overspent: true });
 assert.equal(S.read(c, 'mumbai').balance, S.read(c, 'delhi').balance);
+
+
+// Challenges: every answer is one of its options, every item explains why.
+assert.deepEqual(validate(SCENARIOS), []);
+assert.ok(SCENARIOS.length >= 10);
 
 console.log('selftest: all assertions passed');

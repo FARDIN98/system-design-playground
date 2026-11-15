@@ -1,0 +1,47 @@
+/* Tokens and base styles shared by the revision and interview pages (same look as ep1/). */
+:root {
+  --bg: #ffffff; --surface: #f6f6f3; --ink: #1d1d1b; --muted: #6b6a63; --line: #deddd6;
+  --a: #2a78d6; --a-soft: #dbe8f8; --b: #1baf7a; --b-soft: #d6f2e7;
+  --good: #0a7d34; --good-bg: #e3f4e8; --warn: #9a6300; --warn-bg: #fdf1d8; --bad: #c62828; --bad-bg: #fbe4e4;
+  --focus: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #191919; --surface: #242423; --ink: #ededea; --muted: #a3a29b; --line: #3a3a37;
+    --a: #5c9df0; --a-soft: #1d3350; --b: #3cc893; --b-soft: #173b2e;
+    --good: #5fd08a; --good-bg: #16301f; --warn: #f0b545; --warn-bg: #3a2c10; --bad: #f07a7a; --bad-bg: #3d1a1a;
+    --focus: #5c9df0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #191919; --surface: #242423; --ink: #ededea; --muted: #a3a29b; --line: #3a3a37;
+  --a: #5c9df0; --a-soft: #1d3350; --b: #3cc893; --b-soft: #173b2e;
+  --good: #5fd08a; --good-bg: #16301f; --warn: #f0b545; --warn-bg: #3a2c10; --bad: #f07a7a; --bad-bg: #3d1a1a;
+  --focus: #5c9df0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 14px 16px 18px; }
+h1 { font-size: 18px; margin: 0 0 2px; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+.tabs, .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab, .seg button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 14px; border-radius: 999px; font: inherit; font-weight: 600; cursor: pointer; }
+.tab[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--a); border-color: var(--a); color: #fff; }
+.seg button { font-weight: 500; padding: 4px 12px; font-size: 13.5px; }
+.seg .lbl { font-size: 13px; color: var(--muted); align-self: center; }
+button.act { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+button.act.primary { border-color: var(--a); font-weight: 600; }
+button.act:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input[type=text], input[type=number], input[type=search], select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.banner { padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--line); background: var(--surface); }
+.banner.good { background: var(--good-bg); border-color: var(--good); }
+.banner.warn { background: var(--warn-bg); border-color: var(--warn); }
+.banner.bad { background: var(--bad-bg); border-color: var(--bad); }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--bg); margin-bottom: 10px; }
+.note { color: var(--muted); font-size: 12.5px; margin: 4px 0 8px; }
+.meta { color: var(--muted); font-size: 13px; }
+a { color: var(--focus); }
+.try { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+[hidden] { display: none !important; }

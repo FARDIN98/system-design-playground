@@ -76,6 +76,12 @@ label.users b { font-variant-numeric: tabular-nums; min-width: 82px; }
 .link.cut .wire { border-top: 4px dashed var(--bad); }
 ol.log { margin: 0 0 8px; padding-left: 20px; font-size: 13px; }
 ol.log li { margin: 1px 0; }
+.est { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 12px; margin-bottom: 10px; }
+.est label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+.est input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%; }
+.steps { margin: 0 0 8px; padding-left: 20px; font-size: 14px; }
+.steps li { margin: 3px 0; }
+.big { font: 700 22px ui-monospace, Menlo, monospace; }
 .try { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
 .try a { color: var(--focus); }
 [hidden] { display: none !important; }
@@ -90,11 +96,13 @@ ol.log li { margin: 1px 0; }
 <body>
 <main>
   <h1>Scaling and CAP playground</h1>
-  <p class="sub">Two ideas from EP-1. Click things, break things, watch what happens.</p>
+  <p class="sub">Ideas from EP-1. Click things, break things, watch what happens, then test yourself.</p>
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-scale" aria-controls="scale" aria-selected="true">Vertical vs horizontal</button>
     <button class="tab" role="tab" id="tab-cap" aria-controls="cap" aria-selected="false">CAP theorem</button>
+    <button class="tab" role="tab" id="tab-ch" aria-controls="ch" aria-selected="false">🎯 Challenges</button>
+    <button class="tab" role="tab" id="tab-est" aria-controls="est" aria-selected="false">🧮 Estimate</button>
   </div>
 
   <section id="scale" role="tabpanel" aria-labelledby="tab-scale">
@@ -141,12 +149,30 @@ ol.log li { margin: 1px 0; }
     <ol class="log" id="c-log"></ol>
   </section>
 
-  <p class="try">Try: <b>Vertical</b> → drag users to 1 lakh, grow the machine to 32 cores, then crash it. <b>Horizontal</b> → crash one of 4 servers. <b>CAP</b> → cut the network, pay at Mumbai, read at Delhi; switch to A + P and pay ₹100 on both sides, then heal.
+  <section id="ch" role="tabpanel" aria-labelledby="tab-ch" hidden></section>
+
+  <section id="est" role="tabpanel" aria-labelledby="tab-est" hidden>
+    <p class="note" style="margin-top:0">Back-of-envelope sizing, the way interviewers ask for it. Change any number.</p>
+    <div class="est">
+      <label>Daily active users <input type="number" id="e-users" min="1" value="100000"></label>
+      <label>Requests per user per day <input type="number" id="e-per" min="1" value="20"></label>
+      <label>Peak = average × <input type="number" id="e-peak" min="1" step="0.5" value="3"></label>
+      <label>One server handles (req/s) <input type="number" id="e-srv" min="1" value="500"></label>
+    </div>
+    <div class="banner" id="e-out" role="status" aria-live="polite"></div>
+    <ol class="steps" id="e-steps"></ol>
+    <p class="note">General method, not from the video. The per-server number is an assumption: measure it with a load test (k6, Autocannon), as EP-1 says. The spare is there so one crash doesn’t hurt, the horizontal-scaling lesson.</p>
+  </section>
+
+  <p class="try">Try: <b>Vertical</b> → drag users to 1 lakh, grow the machine to 32 cores, then crash it. <b>Horizontal</b> → crash one of 4 servers. <b>CAP</b> → cut the network, pay at Mumbai, read at Delhi; switch to A + P and pay ₹100 on both sides, then heal. <b>Challenges</b> → 12 interview-style situations. <b>Estimate</b> → users to servers.
   From EP-1 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=DCYaJb8Bzdk" target="_blank" rel="noopener">watch the video</a></p>
 </main>
 
 <script type="module">
 import * as S from './sim.js';
+import { estimate, fmtNum } from '../lib.js';
+import { mount, CSS } from '../challenge.js';
+import { SCENARIOS } from './scenarios.js';
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString('en-IN');
@@ -277,6 +303,26 @@ function drawCap() {
   $('c-net').textContent = c.linked ? '✂️ Cut the network' : '🔗 Heal the network';
   $('c-log').innerHTML = log.map(h => `<li>${h}</li>`).join('');
 }
+
+// ---------- challenges ----------
+document.head.insertAdjacentHTML('beforeend', `<style>${CSS}</style>`);
+mount($('ch'), SCENARIOS);
+
+// ---------- estimate ----------
+function drawEst() {
+  const v = id => Math.max(1, +$(id).value || 1);
+  const q = { users: v('e-users'), perUser: v('e-per'), peak: v('e-peak'), perServer: v('e-srv') };
+  const r = estimate(q);
+  setMsg($('e-out'), 'good', `Peak ≈ <span class="big">${fmtNum(r.peakRps)}</span> req/s → <b>${r.servers}</b> server${r.servers > 1 ? 's' : ''}, so plan <b>${r.withSpare}</b> (1 spare).`);
+  $('e-steps').innerHTML = [
+    `${fmtNum(q.users)} users × ${fmtNum(q.perUser)} requests = <b>${fmtNum(q.users * q.perUser)}</b> requests a day`,
+    `÷ 86,400 seconds in a day = <b>${fmtNum(r.avg)}</b> req/s on average`,
+    `× ${q.peak} for the busy hour = <b>${fmtNum(r.peakRps)}</b> req/s at peak`,
+    `÷ ${fmtNum(q.perServer)} req/s per server = ${(r.peakRps / q.perServer).toFixed(2)} → round up to <b>${r.servers}</b>, + 1 spare = <b>${r.withSpare}</b>`,
+  ].map(x => `<li>${x}</li>`).join('');
+}
+document.querySelectorAll('.est input').forEach(i => i.addEventListener('input', drawEst));
+drawEst();
 
 drawScale();
 resetCapMsg();

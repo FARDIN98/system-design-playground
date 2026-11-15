@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revision Hub</title>
+<meta name="description" content="Graded flashcards, a 5-minute clip reel, an order-the-flow puzzle and a concept map for the system design series.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.flash { min-height: 150px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.flash .q { font-size: 17px; font-weight: 600; }
+.flash .a { font-size: 15.5px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.grades button.again { border-color: var(--bad); } .grades button.good { border-color: var(--good); } .grades button.easy { border-color: var(--a); }
+.boxes { display: flex; gap: 3px; margin: 6px 0 10px; }
+.boxes i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface); border: 1px solid var(--line); }
+.boxes i.k { background: var(--good); border-color: var(--good); }
+.yt-wrap { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.yt-wrap iframe, .yt-wrap #yt { position: absolute; inset: 0; width: 100%; height: 100%; }
+ol.clips { margin: 6px 0 0; padding-left: 0; list-style: none; font-size: 14px; }
+ol.clips li { display: flex; gap: 6px; align-items: baseline; padding: 4px 6px; border-radius: 6px; }
+ol.clips li.on { background: var(--a-soft); }
+ol.clips button { all: unset; cursor: pointer; flex: 1; }
+ol.clips button:focus-visible { outline: 2px solid var(--focus); }
+ol.clips small { color: var(--muted); font-variant-numeric: tabular-nums; }
+ol.pz { list-style: none; padding: 0; margin: 0 0 10px; }
+ol.pz li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-bottom: 5px; background: var(--bg); cursor: grab; }
+ol.pz li.wrong { border-color: var(--bad); background: var(--bad-bg); }
+ol.pz li.ok { border-color: var(--good); background: var(--good-bg); }
+ol.pz li.drag { opacity: .4; }
+ol.pz .n { font: 700 13px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 18px; }
+ol.pz .t { flex: 1; font-size: 14.5px; }
+ol.pz button.act { padding: 2px 8px; font-size: 13px; }
+.map-svg { width: 100%; height: auto; display: block; }
+.map-svg .col-h { font: 600 12px -apple-system, sans-serif; fill: var(--muted); }
+.map-svg .lk { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.map-svg .lk.on { stroke: var(--a); stroke-width: 2.5; }
+.map-svg .nd rect { fill: var(--surface); stroke: var(--line); }
+.map-svg .nd text { font: 12.5px -apple-system, sans-serif; fill: var(--ink); pointer-events: none; }
+.map-svg .nd { cursor: pointer; outline: none; }
+.map-svg .nd:hover rect, .map-svg .nd:focus-visible rect { stroke: var(--a); stroke-width: 2; }
+.map-svg .nd.sel rect { fill: var(--a); stroke: var(--a); } .map-svg .nd.sel text { fill: #fff; font-weight: 600; }
+.map-svg .nd.near rect { fill: var(--a-soft); stroke: var(--a); }
+.map-svg .nd.dim { opacity: .3; }
+.map-list { display: none; }
+.map-list h3 { font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+.map-list .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chip.sel { background: var(--a); border-color: var(--a); color: #fff; }
+.chip.dim { opacity: .4; }
+.detail h3 { margin: 0 0 4px; font-size: 16px; }
+@media (max-width: 500px) { .map-svg { display: none; } .map-list { display: block; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Revision hub</h1>
+  <p class="sub">Cards, a 5-minute clip reel, a puzzle and a concept map for Ankit Jain’s System Design series.</p>
+
+  <div class="seg" role="group" aria-label="Episode">
+    <span class="lbl">Episode:</span>
+    <button type="button" data-ep="ep1">EP-1</button>
+    <button type="button" data-ep="ep4">EP-4</button>
+    <button type="button" data-ep="all">Both</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-cards" aria-controls="cards" aria-selected="true">🃏 Cards</button>
+    <button class="tab" role="tab" id="tab-reel" aria-controls="reel" aria-selected="false">🎬 Reel</button>
+    <button class="tab" role="tab" id="tab-puzzle" aria-controls="puzzle" aria-selected="false">🧩 Puzzle</button>
+    <button class="tab" role="tab" id="tab-map" aria-controls="map" aria-selected="false">🗺️ Map</button>
+  </div>
+
+  <section id="cards" role="tabpanel" aria-labelledby="tab-cards"></section>
+
+  <section id="reel" role="tabpanel" aria-labelledby="tab-reel" hidden>
+    <div class="yt-wrap"><div id="yt"></div></div>
+    <div class="banner" id="r-cap" role="status" aria-live="polite"></div>
+    <div class="row">
+      <button class="act" type="button" id="r-prev">⏮ Prev</button>
+      <button class="act primary" type="button" id="r-play">▶ Play</button>
+      <button class="act" type="button" id="r-next">Next ⏭</button>
+      <label class="meta"><input type="checkbox" id="r-auto" checked> Play the next clip by itself</label>
+    </div>
+    <ol class="clips" id="r-list"></ol>
+  </section>
+
+  <section id="puzzle" role="tabpanel" aria-labelledby="tab-puzzle" hidden></section>
+
+  <section id="map" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <div class="row"><input type="search" id="m-q" placeholder="Search a concept…" aria-label="Search concepts" style="flex:1 1 200px"></div>
+    <div id="m-svg"></div>
+    <div class="map-list" id="m-list"></div>
+    <div class="card detail" id="m-detail" role="status" aria-live="polite"><span class="meta">Click a concept to see what it means, which episode explains it and its related ideas.</span></div>
+  </section>
+
+  <p class="try" id="try"></p>
+</main>
+
+<script type="module">
+import ep1 from '../data/ep1.js';
+import ep4 from '../data/ep4.js';
+import { CONCEPTS, LINKS } from '../data/concepts.js';
+import * as L from '../lib.js';
+
+const EPS = { ep1, ep4 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const yt = (video, t) => `https://www.youtube.com/watch?v=${video}&t=${t}s`;
+
+// ---------- episode + tabs ----------
+const qs = new URLSearchParams(location.search);
+let sel = qs.get('ep') === '4' ? ['ep4'] : qs.get('ep') === 'all' ? ['ep1', 'ep4'] : ['ep1'];
+const epKey = () => (sel.length > 1 ? 'all' : sel[0]);
+document.querySelectorAll('[data-ep]').forEach(b => b.addEventListener('click', () => {
+  sel = b.dataset.ep === 'all' ? ['ep1', 'ep4'] : [b.dataset.ep];
+  const u = new URL(location.href); u.searchParams.set('ep', b.dataset.ep === 'all' ? 'all' : b.dataset.ep.slice(2));
+  try { history.replaceState(null, '', u); } catch { /* sandboxed */ }
+  drawAll();
+}));
+const tabs = [...document.querySelectorAll('.tab')];
+function selectTab(t) {
+  tabs.forEach(o => { const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on; });
+  if (t.id === 'tab-reel') reelStart();
+}
+tabs.forEach(t => t.addEventListener('click', () => selectTab(t)));
+
+// ---------- 🃏 cards ----------
+const CKEY = 'sd-cards-v1';
+let cstate = L.load(CKEY, {});
+let session = null;
+function deck() { return sel.flatMap(e => EPS[e].cards.map(c => ({ ...c, id: L.cardId(e, c.q), ep: EPS[e].name }))); }
+function newSession() { session = { queue: L.buildQueue(deck(), cstate).map(c => c.id), i: 0, shown: false, again: new Set() }; }
+function drawCards() {
+  const cards = deck(), byId = Object.fromEntries(cards.map(c => [c.id, c]));
+  if (!session) newSession();
+  const k = L.known(cards, cstate), boxes = cards.map(c => `<i class="${(cstate[c.id]?.box || 0) > 0 ? 'k' : ''}"></i>`).join('');
+  const head = `<div class="meta">Known <b>${k}/${cards.length}</b> · grade each card honestly; missed cards come back first.</div><div class="boxes" aria-hidden="true">${boxes}</div>`;
+  if (session.i >= session.queue.length) {
+    $('cards').innerHTML = `${head}<div class="card flash"><div class="q">✅ Session done: you know ${k} of ${cards.length}.</div><div class="meta">${k === cards.length ? 'All known. Come back on your next revision date.' : 'Start again to see the missed ones first.'}</div></div>
+      <div class="row"><button class="act primary" type="button" data-c="restart">Start again</button><button class="act" type="button" data-c="reset">Reset progress</button></div>`;
+    return;
+  }
+  const c = byId[session.queue[session.i]];
+  $('cards').innerHTML = `${head}<div class="card flash" aria-live="polite"><div class="meta">${esc(c.ep)} · card ${session.i + 1} of ${session.queue.length}</div><div class="q">${esc(c.q)}</div>${session.shown ? `<div class="a">${esc(c.a)}</div>` : ''}</div>
+    <div class="row grades">${session.shown
+      ? `<button class="act again" type="button" data-g="again">✗ Again <small>(1)</small></button><button class="act good" type="button" data-g="good">✓ Good <small>(2)</small></button><button class="act easy" type="button" data-g="easy">★ Easy <small>(3)</small></button>`
+      : `<button class="act primary" type="button" data-c="show">Show answer <small>(space)</small></button>`}
+      <span style="flex:1"></span><button class="act" type="button" data-c="reset">Reset progress</button></div>
+    <p class="note">Say the answer out loud first, then reveal. Progress is saved on this device only.</p>`;
+}
+function gradeCard(g) {
+  const id = session.queue[session.i];
+  cstate[id] = { box: L.nextBox(cstate[id]?.box || 0, g), seen: Date.now() };
+  L.save(CKEY, cstate);
+  if (g === 'again' && !session.again.has(id)) { session.again.add(id); session.queue.push(id); }
+  session.i++; session.shown = false; drawCards();
+  $('cards').querySelector('button')?.focus();
+}
+$('cards').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.g) return gradeCard(b.dataset.g);
+  if (b.dataset.c === 'show') { session.shown = true; drawCards(); $('cards').querySelector('[data-g=good]').focus(); }
+  if (b.dataset.c === 'restart') { newSession(); drawCards(); }
+  if (b.dataset.c === 'reset') { deck().forEach(c => delete cstate[c.id]); L.save(CKEY, cstate); newSession(); drawCards(); }
+});
+document.addEventListener('keydown', e => {
+  if ($('cards').hidden || e.target.closest('input, select, textarea') || !session || session.i >= session.queue.length) return;
+  if (!session.shown && (e.key === ' ' || e.key === 'Enter') && !e.target.closest('button')) { e.preventDefault(); session.shown = true; drawCards(); }
+  else if (session.shown && ['1', '2', '3'].includes(e.key)) gradeCard(['again', 'good', 'easy'][+e.key - 1]);
+});
+
+// ---------- 🎬 reel ----------
+let player = null, ready = false, pending = false, cur = 0, ytReady = null, loadedAt = 0;
+const clips = () => sel.flatMap(e => EPS[e].clips.map(c => ({ ...c, video: EPS[e].video, ep: EPS[e].name })));
+function loadYT() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise((res, rej) => {
+    if (window.YT?.Player) return res();
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = rej; document.head.append(s);
+    setTimeout(() => rej(new Error('timeout')), 15000);
+  });
+  return ytReady;
+}
+function reelStart() {
+  if (player) return;
+  drawReel();
+  loadYT().then(() => {
+    const c = clips()[cur];
+    player = new YT.Player('yt', {
+      videoId: c.video, playerVars: { start: c.start, end: c.end, rel: 0, playsinline: 1, modestbranding: 1 },
+      // the player can repeat ENDED right after a new clip loads; ignore that echo
+      events: { onReady: () => { ready = true; if (pending) play(cur); }, onStateChange: e => { if (e.data === YT.PlayerState.ENDED && Date.now() - loadedAt > 1500 && $('r-auto').checked && cur + 1 < clips().length) play(cur + 1); } },
+    });
+  }).catch(() => {
+    $('r-cap').className = 'banner warn';
+    $('r-cap').innerHTML = 'The YouTube player didn’t load here. Use the ↗ links below to open each clip on YouTube.';
+  });
+}
+function play(i) {
+  const list = clips(); cur = Math.max(0, Math.min(list.length - 1, i));
+  const c = list[cur];
+  loadedAt = Date.now();
+  pending = !ready;
+  if (ready) player.loadVideoById({ videoId: c.video, startSeconds: c.start, endSeconds: c.end });
+  drawReel();
+}
+function drawReel() {
+  const list = clips(), c = list[cur];
+  $('r-cap').className = 'banner';
+  $('r-cap').innerHTML = `<span class="meta">Clip ${cur + 1} of ${list.length} · ${esc(c.ep)} at ${mmss(c.start)}</span><br><b>${esc(c.title)}</b>: ${esc(c.why)}`;
+  $('r-list').innerHTML = list.map((x, i) => `<li class="${i === cur ? 'on' : ''}"><small>${i + 1}.</small><button type="button" data-i="${i}">${esc(x.title)} <small>${esc(x.ep)} · ${mmss(x.start)} · ${x.end - x.start}s</small></button><a href="${yt(x.video, x.start)}" target="_blank" rel="noopener" aria-label="Open ${esc(x.title)} on YouTube">↗</a></li>`).join('')
+    + `<li><small>Total ≈ ${Math.round(L.reelLength(list) / 60)} min of the most important moments.</small></li>`;
+  $('r-prev').disabled = cur === 0; $('r-next').disabled = cur === list.length - 1;
+}
+$('r-prev').addEventListener('click', () => play(cur - 1));
+$('r-next').addEventListener('click', () => play(cur + 1));
+$('r-play').addEventListener('click', () => play(cur));
+$('r-list').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) play(+b.dataset.i); });
+
+// ---------- 🧩 puzzle ----------
+const pz = {};
+function pzState(e) {
+  if (!pz[e]) pz[e] = { order: L.shuffled(EPS[e].puzzle.steps), wrong: null, solved: false, pick: null };
+  return pz[e];
+}
+function drawPuzzle() {
+  $('puzzle').innerHTML = sel.map(e => {
+    const p = EPS[e].puzzle, s = pzState(e), m = p.missing;
+    const items = s.order.map((t, i) => `<li draggable="true" data-e="${e}" data-i="${i}" class="${s.wrong ? (s.wrong.includes(i) ? 'wrong' : 'ok') : ''}"><span class="n">${i + 1}</span><span class="t">${esc(t)}</span>
+      <button class="act" type="button" data-mv="-1" aria-label="Move up"${i === 0 ? ' disabled' : ''}>↑</button><button class="act" type="button" data-mv="1" aria-label="Move down"${i === s.order.length - 1 ? ' disabled' : ''}>↓</button></li>`).join('');
+    const res = s.wrong === null ? '<span class="meta">Put the steps in the order a request really travels. Drag them, or use ↑ ↓.</span>'
+      : s.solved ? '✅ <b>All in order.</b> Now the follow-up question:'
+      : `❌ <b>${s.wrong.length} step${s.wrong.length > 1 ? 's are' : ' is'} in the wrong place</b> (marked red). Move them and check again.`;
+    const miss = !s.solved ? '' : `<p style="margin:8px 0"><b>${esc(m.q)}</b></p><div class="row">${m.options.map((o, k) => `<button class="act" type="button" data-e="${e}" data-pick="${k}"${s.pick !== null ? ' disabled' : ''}>${esc(o)}</button>`).join('')}</div>
+      ${s.pick === null ? '' : `<div class="banner ${m.options[s.pick] === m.answer ? 'good' : 'bad'}">${m.options[s.pick] === m.answer ? '✅ Right.' : `❌ It’s <b>${esc(m.answer)}</b>.`} ${esc(m.why)}</div>`}`;
+    return `<div class="card"><h3 style="margin:0 0 8px;font-size:15px">${esc(EPS[e].name)}: ${esc(p.title)}</h3><ol class="pz">${items}</ol>
+      <div class="row"><button class="act primary" type="button" data-e="${e}" data-pc="check">Check order</button><button class="act" type="button" data-e="${e}" data-pc="shuffle">Shuffle again</button></div>
+      <div class="banner ${s.wrong === null ? '' : s.solved ? 'good' : 'bad'}" role="status" aria-live="polite">${res}</div>${miss}</div>`;
+  }).join('');
+}
+function move(e, from, to) {
+  const s = pzState(e); if (to < 0 || to >= s.order.length) return;
+  const [x] = s.order.splice(from, 1); s.order.splice(to, 0, x); s.wrong = null;
+}
+$('puzzle').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const li = b.closest('li'), e = b.dataset.e || li?.dataset.e;
+  if (b.dataset.mv) { const i = +li.dataset.i, j = i + +b.dataset.mv; move(e, i, j); drawPuzzle(); $('puzzle').querySelector(`li[data-e="${e}"][data-i="${j}"] [data-mv="${b.dataset.mv}"]`)?.focus(); return; }
+  const s = pzState(e);
+  if (b.dataset.pc === 'check') { s.wrong = L.wrongPositions(s.order, EPS[e].puzzle.steps); s.solved = s.wrong.length === 0; }
+  if (b.dataset.pc === 'shuffle') delete pz[e];
+  if (b.dataset.pick !== undefined) s.pick = +b.dataset.pick;
+  drawPuzzle();
+});
+let dragFrom = null;
+$('puzzle').addEventListener('dragstart', e => { const li = e.target.closest('li[draggable]'); if (!li) return; dragFrom = li; li.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
+$('puzzle').addEventListener('dragover', e => { if (dragFrom && e.target.closest('li')?.dataset.e === dragFrom.dataset.e) e.preventDefault(); });
+$('puzzle').addEventListener('drop', e => {
+  const to = e.target.closest('li'); if (!dragFrom || !to) return;
+  e.preventDefault(); move(to.dataset.e, +dragFrom.dataset.i, +to.dataset.i); dragFrom = null; drawPuzzle();
+});
+$('puzzle').addEventListener('dragend', () => { dragFrom = null; drawPuzzle(); });
+
+// ---------- 🗺️ map ----------
+const byId = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
+const epsOf = c => Object.keys(c.t);
+const colOf = c => (epsOf(c).length > 1 ? 1 : epsOf(c)[0] === 'ep1' ? 0 : 2);
+const neighbours = id => LINKS.filter(l => l.includes(id)).map(l => (l[0] === id ? l[1] : l[0]));
+let mSel = null;
+const RH = 30, NW = 178, NH = 24, COLX = [8, 281, 554], TOP = 30;
+const pos = {};
+[0, 1, 2].forEach(col => CONCEPTS.filter(c => colOf(c) === col).forEach((c, r) => { pos[c.id] = { x: COLX[col], y: TOP + r * RH, col }; }));
+const H = TOP + Math.max(...Object.values(pos).map(p => p.y)) + RH;
+function linkPath(a, b) {
+  const p = pos[a], q = pos[b], ya = p.y + NH / 2, yb = q.y + NH / 2;
+  if (p.col === q.col) {
+    const side = p.col === 2 ? -1 : 1, x = p.col === 2 ? p.x : p.x + NW, bend = 26 + Math.abs(yb - ya) * 0.12;
+    return `M${x},${ya} C${x + side * bend},${ya} ${x + side * bend},${yb} ${x},${yb}`;
+  }
+  const [l, r, yl, yr] = p.col < q.col ? [p, q, ya, yb] : [q, p, yb, ya];
+  const x1 = l.x + NW, x2 = r.x, mx = (x1 + x2) / 2;
+  return `M${x1},${yl} C${mx},${yl} ${mx},${yr} ${x2},${yr}`;
+}
+function matches(c) { const q = $('m-q').value.trim().toLowerCase(); return !q || c.label.toLowerCase().includes(q) || c.def.toLowerCase().includes(q); }
+function shown(c) { return matches(c) && (sel.length > 1 || epsOf(c).some(e => sel.includes(e))); }
+function drawMap() {
+  const near = mSel ? new Set(neighbours(mSel)) : new Set();
+  const heads = ['EP-1', 'Both episodes', 'EP-4'].map((h, i) => `<text class="col-h" x="${COLX[i] + 4}" y="16">${h}</text>`).join('');
+  const links = LINKS.map(([a, b]) => `<path class="lk${mSel && (a === mSel || b === mSel) ? ' on' : ''}" d="${linkPath(a, b)}"/>`).join('');
+  const nodes = CONCEPTS.map(c => { const p = pos[c.id], cls = c.id === mSel ? 'sel' : near.has(c.id) ? 'near' : shown(c) ? '' : 'dim';
+    return `<g class="nd ${cls}" data-id="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label)}"><rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="7"/><text x="${p.x + 9}" y="${p.y + 16.5}">${esc(c.label)}</text></g>`; }).join('');
+  $('m-svg').innerHTML = `<svg class="map-svg" viewBox="0 0 740 ${H}" role="group" aria-label="Concept map">${heads}${links}${nodes}</svg>`;
+  $('m-list').innerHTML = [0, 1, 2].map(col => `<h3>${['EP-1', 'Both episodes', 'EP-4'][col]}</h3><div class="chips">${CONCEPTS.filter(c => colOf(c) === col).map(c =>
+    `<button type="button" class="chip ${c.id === mSel ? 'sel' : shown(c) ? '' : 'dim'}" data-id="${c.id}">${esc(c.label)}</button>`).join('')}</div>`).join('');
+  if (!mSel) return;
+  const c = byId[mSel];
+  $('m-detail').innerHTML = `<h3>${esc(c.label)}</h3><p style="margin:0 0 8px">${esc(c.def)}</p>
+    <div class="row">${epsOf(c).map(e => `<a href="${yt(EPS[e].video, c.t[e])}" target="_blank" rel="noopener">▶ ${EPS[e].name} at ${mmss(c.t[e])}</a>`).join(' · ')}</div>
+    <div class="meta">Related: ${neighbours(mSel).map(id => `<button type="button" class="chip" data-id="${id}">${esc(byId[id].label)}</button>`).join(' ') || 'none yet'}</div>`;
+}
+function pickConcept(id) { mSel = id; drawMap(); }
+['m-svg', 'm-list', 'm-detail'].forEach(id => $(id).addEventListener('click', e => { const n = e.target.closest('[data-id]'); if (n) pickConcept(n.dataset.id); }));
+$('m-svg').addEventListener('keydown', e => { const n = e.target.closest('[data-id]'); if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pickConcept(n.dataset.id); $('m-svg').querySelector(`[data-id="${n.dataset.id}"]`).focus(); } });
+$('m-q').addEventListener('input', drawMap);
+$('m-q').addEventListener('keydown', e => { if (e.key === 'Enter') { const c = CONCEPTS.find(shown); if (c) pickConcept(c.id); } });
+
+// ---------- all ----------
+function drawAll() {
+  document.querySelectorAll('[data-ep]').forEach(b => b.setAttribute('aria-pressed', b.dataset.ep === epKey()));
+  newSession(); drawCards();
+  cur = 0; if (ready) { const c = clips()[0]; player.cueVideoById({ videoId: c.video, startSeconds: c.start, endSeconds: c.end }); }
+  drawReel(); drawPuzzle(); drawMap();
+  $('try').innerHTML = `Try: say each card’s answer before revealing it · watch the ${Math.round(L.reelLength(clips()) / 60)}-minute reel on your revision day · solve the puzzle without looking at the notes. ${sel.map(e => `<a href="https://www.youtube.com/watch?v=${EPS[e].video}" target="_blank" rel="noopener">${EPS[e].name} video</a>`).join(' · ')}`;
+}
+drawAll();
+const startTab = tabs.find(t => t.id === `tab-${qs.get('tab')}`);
+if (startTab) selectTab(startTab);
+</script>
+</body>
+</html>

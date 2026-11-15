@@ -1,0 +1,55 @@
+// Concept map across episodes. `t` = seconds into each episode's video where the idea is explained.
+// Add a new episode's concepts here with its own key in `t`, and link them to older ones.
+export const CONCEPTS = [
+  // EP-1
+  { id: 'hld', label: 'HLD', t: { ep1: 982 }, def: 'High-level design: the big boxes and choices (services, DB, cache, queue, load balancer).' },
+  { id: 'lld', label: 'LLD', t: { ep1: 982 }, def: 'Low-level design: the details inside each box (DB schema, APIs, error handling, refunds).' },
+  { id: 'monolith', label: 'Monolith', t: { ep1: 1294 }, def: 'The whole app built and deployed as one piece. Fine to start with.' },
+  { id: 'cdn', label: 'CDN', t: { ep1: 582 }, def: 'Copies of files kept in data centres near users, for low latency.' },
+  { id: 'gateway', label: 'API gateway', t: { ep1: 552 }, def: 'The front door: routes each request to the right service and hides the backend.' },
+  { id: 'hotspot', label: 'Hotspot', t: { ep1: 552 }, def: 'One server or DB getting most of the traffic.' },
+  { id: 'ttl', label: 'Seat lock + TTL', t: { ep1: 552 }, def: 'Hold a seat in Redis with a time-to-live, so the lock expires by itself. Stops double booking.' },
+  { id: 'queue', label: 'Queue (Kafka)', t: { ep1: 1447 }, def: 'Accept the order now; email, stock, SMS and push happen in the background.' },
+  { id: 'cap', label: 'CAP theorem', t: { ep1: 1660 }, def: 'With data on many nodes, during a network split you choose consistency or availability.' },
+  { id: 'partition', label: 'Partition', t: { ep1: 1752 }, def: 'A network split between DB nodes. The P in CAP is keeping working through it.' },
+  { id: 'replication', label: 'Replication', t: { ep1: 1752 }, def: 'Copies of the same data on several nodes. More read capacity, and a backup.' },
+  { id: 'vertical', label: 'Vertical scaling', t: { ep1: 1814 }, def: 'Make one machine bigger: more RAM, CPU, storage. Still one machine.' },
+  { id: 'horizontal', label: 'Horizontal scaling', t: { ep1: 1814 }, def: 'Add more machines behind a load balancer. One dies, the rest serve.' },
+  { id: 'spof', label: 'Single point of failure', t: { ep1: 1814 }, def: 'One part whose failure stops everything, like one big server.' },
+  { id: 'signature', label: 'File signature', t: { ep1: 2180 }, def: 'The first bytes of a file, which show its real type. Check this, not the extension.' },
+  { id: 'backup', label: 'Backup', t: { ep1: 2210 }, def: 'A copy of the DB and static files to recover from loss, even if you replicate.' },
+  { id: 'archival', label: 'Archival', t: { ep1: 2240 }, def: 'Move old data out of the main DB but keep it (UPI ~6 months, IRCTC old tickets).' },
+  // in both episodes
+  { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479 }, def: 'Spreads requests across many servers so none becomes a hotspot.' },
+  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-4: the filter is checked even before Redis.' },
+  { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
+  { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
+  { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
+  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006 }, def: 'Send many users and requests to find the threshold. EP-4 used Grafana k6.' },
+  // EP-4
+  { id: 'exists', label: '“Does it exist?” check', t: { ep4: 0 }, def: 'Validate a value (username, UPI ID, blocked IP) without fetching it or hitting the DB.' },
+  { id: 'fp', label: 'False positive', t: { ep4: 1726 }, def: 'The filter says “maybe” for something that isn’t there. Confirm a “maybe” in the DB.' },
+  { id: 'fn', label: 'No false negatives', t: { ep4: 1726 }, def: 'A filter’s “NO” is always right. That is why it can answer 404 with no DB hit.' },
+  { id: 'bloom', label: 'Bloom filter', t: { ep4: 832 }, def: 'A bit array + several hashes. Simple and small; can’t delete.' },
+  { id: 'counting', label: 'Counting Bloom', t: { ep4: 1231 }, def: 'Bloom with counters instead of bits, so delete works. Costs more memory.' },
+  { id: 'cuckoo', label: 'Cuckoo filter', t: { ep4: 1263 }, def: 'Fingerprints in 2 possible buckets, with kick-outs. Supports real-time delete.' },
+  { id: 'fingerprint', label: 'Fingerprint', t: { ep4: 1263 }, def: 'A few bits of an item’s hash. Cuckoo stores these instead of the item.' },
+  { id: 'quotient', label: 'Quotient filter', t: { ep4: 1293 }, def: 'Splits the hash into parts. Fast, easy delete, a bit complex. Used in storage systems.' },
+  { id: 'fuse', label: 'Binary Fuse / XOR', t: { ep4: 986 }, def: 'The static king: smallest and fastest, but no add or delete, so rebuild to change.' },
+  { id: 'mmap', label: 'Shared mmap file', t: { ep4: 2466 }, def: 'One memory-mapped filter file shared by all workers, instead of a copy per worker.' },
+  { id: 'streams', label: 'Redis Streams sync', t: { ep4: 1913 }, def: 'Push each add/change to every server’s filter in a fraction of a second.' },
+  { id: 'rebuild', label: 'Rebuild on restart', t: { ep4: 2805 }, def: 'Bloom and Fuse rebuild by scanning the DB (300 crore ≈ 3 h for Fuse); Cuckoo loads its saved file.' },
+  { id: 'hashprefix', label: 'Hash Prefix (Chrome)', t: { ep4: 1416 }, def: 'What Chrome Safe Browsing really uses: Bloom-like logic to check malicious URLs locally.' },
+];
+
+export const LINKS = [
+  ['hld', 'lld'], ['hld', 'monolith'], ['hld', 'cdn'], ['hld', 'gateway'], ['hld', 'lb'], ['hld', 'queue'],
+  ['lb', 'hotspot'], ['lb', 'horizontal'], ['cache', 'ttl'], ['cache', 'streams'], ['cache', 'exists'],
+  ['cap', 'partition'], ['cap', 'replication'], ['partition', 'sharding'],
+  ['indexing', 'replication'], ['replication', 'sharding'], ['replication', 'backup'], ['backup', 'archival'],
+  ['vertical', 'spof'], ['horizontal', 'spof'], ['loadtest', 'horizontal'], ['loadtest', 'signature'],
+  ['search', 'exists'], ['indexing', 'exists'], ['sharding', 'exists'],
+  ['exists', 'bloom'], ['exists', 'cuckoo'], ['exists', 'fuse'], ['exists', 'quotient'], ['exists', 'streams'],
+  ['fp', 'fn'], ['fp', 'bloom'], ['bloom', 'counting'], ['bloom', 'hashprefix'],
+  ['cuckoo', 'fingerprint'], ['cuckoo', 'mmap'], ['fuse', 'rebuild'], ['mmap', 'rebuild'],
+];

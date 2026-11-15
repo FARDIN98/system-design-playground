@@ -1,0 +1,87 @@
+// EP-4: Bloom vs Cuckoo vs Binary Fuse filters. Everything here comes from the video unless marked "(general)".
+export default {
+  id: 'ep4',
+  name: 'EP-4',
+  title: 'Bloom vs Cuckoo vs Binary Fuse filters',
+  video: 'B8hMPCM7i8w',
+
+  cards: [
+    ['Why do filters have false positives but never false negatives?', 'Bits are shared by many items; a 0 can only mean "never inserted".'],
+    ['Which filters support delete? Which need a full rebuild?', 'Delete: Counting Bloom, Cuckoo, Quotient. Rebuild: XOR, Binary Fuse.'],
+    ['How does a cuckoo filter insert work when both slots are full?', 'Kick an old fingerprint out; it moves to its other bucket.'],
+    ['Where does the filter sit in the HLD, and what happens on "not found" vs "maybe found"?', 'Inside each server’s RAM. NO → 404 instantly; MAYBE → check DB.'],
+    ['How do you keep filters in sync across 4 servers?', 'Initial load from DB + Redis Streams for updates.'],
+    ['Why did Cuckoo use less app RAM than Bloom in the demo?', 'One shared mmap file vs a copy per worker.'],
+    ['What does a filter save in cloud cost: storage or reads?', 'Reads (fewer read nodes, less CPU). Mongo is still the source of truth, so disk stays.'],
+    ['What does Chrome Safe Browsing actually use?', 'A Hash Prefix filter (Bloom-like logic), checked locally.'],
+    ['How big was the demo’s Bloom filter vs MongoDB for 30 lakh usernames?', 'About 7.5 MB of RAM vs about 161 MB of Mongo disk (~1/20).'],
+    ['In load test A (100% new names), how fast was Bloom and how many DB hits?', 'About 68k requests/sec with 0 DB hits: every request stopped at the filter.'],
+    ['Static data that rarely changes, minimum RAM: which filter?', 'Binary Fuse (or XOR), the “static king”. Rebuild it to change it.'],
+    ['You need delete but want to stay with Bloom. What do you use?', 'Counting Bloom: a counter per slot, so you can subtract. Costs more memory.'],
+    ['300 crore records: will one machine/node do?', 'No. At that size you need sharding.'],
+    ['How long would rebuilding a Fuse filter take at 300 crore?', 'About 3 hours (3M records took 12 s; linear estimate). Cuckoo loads instantly from its saved file.'],
+    ['Should a startup add these filters on day one?', 'No. Add them as users scale, and decide by watching the stats.'],
+  ].map(([q, a]) => ({ q, a })),
+
+  clips: [
+    { start: 0, end: 31, title: 'The problem: does this value exist?', why: 'UPI IDs, usernames, blocked IPs: check existence without hitting the DB.' },
+    { start: 832, end: 864, title: 'Bloom filter', why: 'A bit array + several hashes. Simple and small, but it can’t delete.' },
+    { start: 986, end: 1016, title: 'Binary Fuse', why: 'The static king: smallest and fastest, but rebuild to change.' },
+    { start: 1231, end: 1263, title: 'Counting Bloom', why: 'A counter instead of a bit, so delete becomes possible.' },
+    { start: 1263, end: 1293, title: 'The cuckoo bird', why: 'The chick kicks eggs out of the nest, like a fingerprint kicking another to its other bucket.' },
+    { start: 1479, end: 1510, title: 'The HLD', why: 'Every server holds the filter in its own RAM, before Redis or the DB.' },
+    { start: 1726, end: 1759, title: 'The golden rule', why: 'The filter’s NO is a promise. Its YES is a rumour, so confirm in the DB.' },
+    { start: 1913, end: 1945, title: 'Keeping filters in sync', why: 'Bulk-load on startup, then Redis Streams for every change.' },
+    { start: 2281, end: 2311, title: 'Load-test results', why: '68k req/s with 0 DB hits when every name is new.' },
+    { start: 2805, end: 2835, title: 'Gotchas at 300 crore', why: 'A copy per worker, rebuild time, sharding, and don’t add it on day one.' },
+  ],
+
+  puzzle: {
+    title: 'Checking “does ankit_99 exist?” (the EP-4 HLD)',
+    steps: [
+      'The client asks: does “ankit_99” exist?',
+      'The load balancer sends the request to one of the servers',
+      'The server checks the filter in its own RAM (~1 ms)',
+      'The filter says MAYBE (a NO would return 404 right here, with no DB hit)',
+      'The server confirms in the DB / Elasticsearch',
+      'Found → 200. Not found → 404 (it was a false positive)',
+    ],
+    missing: {
+      q: 'A new user signs up on server A. Which part updates the filters on servers B, C and D?',
+      options: ['Redis Streams', 'The CDN', 'A bigger Mongo index'],
+      answer: 'Redis Streams',
+      why: 'Bulk-load from the DB on startup, then Redis Streams pushes each change to every server in a fraction of a second.',
+    },
+  },
+
+  followups: [
+    { id: 'maybe', t: 1726, q: 'The filter says “maybe” for a username. Do you tell the user it’s taken?',
+      points: ['No: a YES is only “maybe” (false positive)', 'Confirm it in the DB / Elasticsearch', 'Only a NO is 100% true'] },
+    { id: 'fprate', t: 1726, q: 'The false-positive rate is too high. What do you change?',
+      points: ['It’s tunable: more bits / more hash functions', 'That costs more RAM', 'Or pick a filter with fewer false positives (Cuckoo)'] },
+    { id: 'delete', t: 1231, q: 'Users can now delete their accounts, but your Bloom filter can’t delete. Now what?',
+      points: ['Clearing Bloom bits would erase other names too (false negatives)', 'Use Cuckoo: real-time delete', 'Or Counting Bloom: counters, more memory'] },
+    { id: 'sync', t: 1913, q: 'You run 4 servers. A new user signs up on server A. How do B, C and D find out?',
+      points: ['Bulk-load all data from the DB on startup', 'Push every change with Redis Streams', 'It reaches every server in a fraction of a second'] },
+    { id: 'restart', t: 2805, q: 'A server restarts. How long until its filter is ready again?',
+      points: ['Bloom and Fuse rebuild by scanning the DB', 'Fuse: 3M records in 12 s → 300 crore ≈ 3 hours', 'Cuckoo loads instantly from its saved file', 'Persist the filter to skip rebuilds'] },
+    { id: 'ram', t: 2805, q: 'At 300 crore usernames, how much RAM do the filters need per machine?',
+      points: ['Bloom ≈ 7.2 GB per copy', '4 workers × 7.2 GB ≈ 29 GB per machine', 'One shared mmap file (Cuckoo) avoids the copies', 'Past one machine’s limits → sharding'] },
+    { id: 'cost', t: 2773, q: 'Your manager asks: does this filter cut our storage bill?',
+      points: ['No: the DB is still the source of truth, so disk stays', 'It cuts READ cost: fewer read nodes, less CPU', 'About 36% at 300 crore (a rough AI estimate)'] },
+    { id: 'index', t: 2957, q: 'Why not just put an index on the username column?',
+      points: ['An index costs memory + storage (~30 B per record → ~90 GB at 300 crore)', 'Every DB check also adds a network hop', 'The filter answers from RAM in ~1 ms', 'Without the index, Mongo took 685 ms in the demo'] },
+    { id: 'startup', t: 2805, q: 'You’re a 3-person startup with 10k users. Add Cuckoo filters now?',
+      points: ['Not on day one', 'Add them as users scale', 'Decide by watching the stats'] },
+  ],
+
+  problems: [
+    { id: 'username', title: 'Design a username-availability check for 300 crore users', img: '../img/ep4-hld.png', t: 1479,
+      checklist: [
+        ['lb', 'Load balancer'], ['servers', 'Several app servers'], ['filter', 'A filter in each server’s RAM'],
+        ['no', '“NO” → 404 with no DB hit'], ['maybe', '“MAYBE” → confirm in the DB / ES'], ['db', 'DB / ES as the source of truth'],
+        ['load', 'Bulk-load the filter on startup'], ['streams', 'Redis Streams to sync changes'], ['shard', 'Sharding at 300 crore'],
+        ['persist', 'Save the filter to disk for a fast restart'],
+      ].map(([id, label]) => ({ id, label })) },
+  ],
+};
