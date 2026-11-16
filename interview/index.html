@@ -33,6 +33,7 @@
     <span class="lbl">Episode:</span>
     <button type="button" data-ep="ep1">EP-1</button>
     <button type="button" data-ep="ep11">EP-1.1</button>
+    <button type="button" data-ep="ep2">EP-2</button>
     <button type="button" data-ep="ep4">EP-4</button>
     <button type="button" data-ep="all">All</button>
   </div>
@@ -70,9 +71,10 @@
 import ep1 from '../data/ep1.js';
 import ep4 from '../data/ep4.js';
 import ep11 from '../data/ep11.js';
+import ep2 from '../data/ep2.js';
 import * as L from '../lib.js';
 
-const EPS = { ep1, ep11, ep4 };
+const EPS = { ep1, ep11, ep2, ep4 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const p2 = n => String(n).padStart(2, '0');

@@ -12,8 +12,8 @@ export const CONCEPTS = [
   { id: 'cap', label: 'CAP theorem', t: { ep1: 1660 }, def: 'With data on many nodes, during a network split you choose consistency or availability.' },
   { id: 'partition', label: 'Partition', t: { ep1: 1752 }, def: 'A network split between DB nodes. The P in CAP is keeping working through it.' },
   { id: 'replication', label: 'Replication', t: { ep1: 1752 }, def: 'Copies of the same data on several nodes. More read capacity, and a backup.' },
-  { id: 'vertical', label: 'Vertical scaling', t: { ep1: 1814 }, def: 'Make one machine bigger: more RAM, CPU, storage. Still one machine.' },
-  { id: 'horizontal', label: 'Horizontal scaling', t: { ep1: 1814 }, def: 'Add more machines behind a load balancer. One dies, the rest serve.' },
+  { id: 'vertical', label: 'Vertical scaling', t: { ep1: 1814, ep2: 157 }, def: 'Make one machine bigger: more RAM, CPU, storage. Still one machine. EP-2 tests how far one laptop goes.' },
+  { id: 'horizontal', label: 'Horizontal scaling', t: { ep1: 1814, ep2: 187 }, def: 'Add more machines behind a load balancer. One dies, the rest serve.' },
   { id: 'spof', label: 'Single point of failure', t: { ep1: 1814 }, def: 'One part whose failure stops everything, like one big server.' },
   { id: 'signature', label: 'File signature', t: { ep1: 2180 }, def: 'The first bytes of a file, which show its real type. Check this, not the extension.' },
   { id: 'backup', label: 'Backup', t: { ep1: 2210 }, def: 'A copy of the DB and static files to recover from loss, even if you replicate.' },
@@ -21,11 +21,11 @@ export const CONCEPTS = [
   // in 2+ episodes
   { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
   { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
-  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-4: the filter is checked even before Redis.' },
+  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis.' },
   { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
-  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862 }, def: 'Send many users and requests to find the threshold. EP-4 and EP-1.1 used Grafana k6.' },
+  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862, ep2: 893 }, def: 'Send many users and requests to find the threshold. EP-4, EP-1.1 and EP-2 used Grafana k6.' },
   // EP-4
   { id: 'exists', label: '“Does it exist?” check', t: { ep4: 0 }, def: 'Validate a value (username, UPI ID, blocked IP) without fetching it or hitting the DB.' },
   { id: 'fp', label: 'False positive', t: { ep4: 1726 }, def: 'The filter says “maybe” for something that isn’t there. Confirm a “maybe” in the DB.' },
@@ -48,11 +48,18 @@ export const CONCEPTS = [
   { id: 'docker', label: 'Docker', t: { ep11: 2973 }, def: 'Packs the app with its environment so it runs the same on every machine. Costs laptop speed.' },
   { id: 'seed', label: 'Seed + Swagger', t: { ep11: 3314 }, def: 'Seed fills the DB with test data; Swagger lists every API at /docs so you can try it.' },
   { id: 'vu', label: 'Virtual users + sleep', t: { ep11: 4660 }, def: 'k6 VUs loop over the script. sleep(1) caps each at ~1 request/s, so requests ≈ VUs × seconds.' },
-  { id: 'pm2', label: 'PM2 cluster', t: { ep11: 4413 }, def: 'Runs one Node worker per CPU core on the same port and restarts a worker that crashes.' },
-  { id: 'revproxy', label: 'Reverse proxy', t: { ep11: 5274 }, def: 'Nginx in front: clients hit :8080, Nginx forwards to the app on :3000, which stays hidden.' },
+  { id: 'pm2', label: 'PM2 cluster', t: { ep11: 4413, ep2: 1608 }, def: 'Runs one Node worker per CPU core on the same port and restarts a worker that crashes.' },
+  { id: 'revproxy', label: 'Reverse proxy', t: { ep11: 5274, ep2: 1947 }, def: 'Nginx in front: clients hit :8080, Nginx forwards to the app on :3000, which stays hidden.' },
   { id: 'workerconn', label: 'worker_connections', t: { ep11: 5642 }, def: 'Nginx’s connection limit, 512 by default. Raise it before a big load test (he used 8192).' },
-  { id: 'gzip', label: 'gzip', t: { ep11: 5672 }, def: 'Compresses replies (up to ~70% smaller) at the cost of CPU.' },
-  { id: 'monitoring', label: 'Prometheus + Grafana', t: { ep11: 5734 }, def: 'Prometheus stores the numbers over time; Grafana draws dashboards from them.' },
+  { id: 'gzip', label: 'gzip / compression', t: { ep11: 5672, ep2: 2192 }, def: 'Compresses replies (up to ~70% smaller) at the cost of CPU. EP-2: 20 GB could become 2–3 GB, but req/s drops.' },
+  { id: 'monitoring', label: 'Prometheus + Grafana', t: { ep11: 5734, ep2: 1017 }, def: 'Prometheus stores the numbers over time; Grafana draws dashboards from them.' },
+  // EP-2
+  { id: 'frameworks', label: 'Node vs Express vs Fastify vs Go', t: { ep2: 1505 }, def: 'One core, 3000 users: 5,225 · 5,101 · 6,545 · 17,704 req/s. Go uses every core by itself.' },
+  { id: 'corelimit', label: 'More cores ≠ more speed', t: { ep2: 2408 }, def: 'Fastify on 10 PM2 workers did 9,741 req/s vs 15,010 on 4: the cores were shared with the OS and other apps.' },
+  { id: 'cpuload', label: 'CPU busy vs system load', t: { ep2: 1078 }, def: 'CPU busy = how hard the CPU works now (the cashier). System load = tasks waiting in the queue (the line).' },
+  { id: 'p95', label: 'p95 latency', t: { ep2: 1047 }, def: '95% of requests were faster than this. In his runs it rose once CPU passed ~50%.' },
+  { id: 'nginxcache', label: 'Nginx cache (15 s)', t: { ep2: 1947 }, def: 'proxy_cache keeps each 200 reply for 15 s, so repeat requests skip Node and the DB: 56,631 req/s.' },
+  { id: 'stale', label: 'Cache what can be stale', t: { ep2: 2008 }, def: 'A bank balance must be exact (don’t cache); history, likes and product lists can be seconds old (cache).' },
 ];
 
 export const LINKS = [
@@ -67,4 +74,6 @@ export const LINKS = [
   ['cuckoo', 'fingerprint'], ['cuckoo', 'mmap'], ['fuse', 'rebuild'], ['mmap', 'rebuild'],
   ['guardrails', 'hooks'], ['lld', 'featurebased'], ['featurebased', 'layers'], ['lld', 'layers'], ['docker', 'seed'],
   ['loadtest', 'vu'], ['vu', 'pm2'], ['pm2', 'lb'], ['lb', 'revproxy'], ['revproxy', 'workerconn'], ['revproxy', 'gzip'], ['loadtest', 'monitoring'],
+  ['vertical', 'corelimit'], ['pm2', 'corelimit'], ['frameworks', 'loadtest'], ['frameworks', 'pm2'], ['cpuload', 'monitoring'], ['cpuload', 'p95'],
+  ['p95', 'loadtest'], ['nginxcache', 'revproxy'], ['nginxcache', 'cache'], ['nginxcache', 'stale'], ['stale', 'cap'],
 ];

@@ -131,8 +131,20 @@ export const DRILLS = {
       unit: 'MB', answer: mb * 0.3,
       working: `70% smaller leaves 30%: ${fmtNum(mb)} × 0.3 ≈ <b>${fmtNum(mb * 0.3)} MB</b>. The price is CPU: EP-1.1 served 133,702 requests through Nginx + gzip vs ~1.5 lakh without it.` };
   },
+  cores(rnd) {
+    const [fw, one, x] = pick([['Fastify', 6545, 2.29], ['Express', 5101, 2.82]], rnd), base = pick([1, 1.5, 2], rnd) * one;
+    return { kind: 'cores', q: `One ${fw} process serves <b>${fmtNum(base)} req/s</b>. In EP-2, PM2 with 4 workers gave ${fw} <b>${x}×</b>. About how many <b>req/s</b> on 4 workers?`,
+      unit: 'req/s', answer: base * x,
+      working: `${fmtNum(base)} × ${x} ≈ <b>${fmtNum(base * x)} req/s</b>. Not 4×: the cores also run the OS, k6 and the DB. EP-2: Fastify 6,545 → 15,010; at 10 workers it fell to 9,741.` };
+  },
+  bandwidth(rnd) {
+    const rps = pick([5000, 15010, 56631], rnd), kb = pick([3.3, 10, 50], rnd);
+    return { kind: 'bandwidth', q: `Your API serves <b>${fmtNum(rps)} req/s</b> and each reply is about <b>${kb} KB</b>. How many <b>MB per second</b> leave the server?`,
+      unit: 'MB/s', answer: (rps * kb) / 1000,
+      working: `${fmtNum(rps)} × ${kb} KB = ${fmtNum(rps * kb)} KB/s ≈ <b>${fmtNum((rps * kb) / 1000)} MB/s</b>. EP-2’s Nginx cache test: 56,631 req/s ≈ 185 MB/s, 20 GB in one run. Compression cuts bytes but costs CPU.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;

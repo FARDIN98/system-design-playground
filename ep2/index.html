@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Core Lab Playground</title>
+<meta name="description" content="Pick Node, Express, Fastify or Go, set PM2 workers and the Nginx cache, and compare with the video’s load tests; then scale and cache challenges.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.ctl { display: grid; gap: 8px; margin-bottom: 12px; }
+.ctl .seg { margin: 0; align-items: center; }
+.ctl label.range { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 14px; }
+.ctl input[type=range] { flex: 1; min-width: 180px; accent-color: var(--a); }
+.seg .lbl { min-width: 128px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.stat small { display: block; color: var(--muted); font-size: 12.5px; }
+.stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.runs { list-style: none; padding: 0; margin: 0 0 8px; }
+.runs li { display: grid; grid-template-columns: 170px 1fr 74px; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 8px; }
+.runs li.match { background: var(--a-soft); }
+.runs button { all: unset; cursor: pointer; font-size: 13.5px; }
+.runs button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.runs .val { text-align: right; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.track { height: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 4px 4px 0; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--muted); border-radius: 0 4px 4px 0; transition: width .25s; }
+.runs li.you .track i { background: var(--a); }
+.runs li.you { font-weight: 600; }
+@media (max-width: 520px) { .runs li { grid-template-columns: 1fr 64px; } .runs .track { grid-column: 1 / -1; grid-row: 2; } .seg .lbl { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Core lab</h1>
+  <p class="sub">EP-2: one MacBook, 3000 users for 2 minutes per run. Pick the server, the cores and the cache.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-lab" aria-controls="lab" aria-selected="true">⚙️ Core lab</button>
+    <button class="tab" role="tab" id="tab-scale" aria-controls="scale" aria-selected="false">📈 Scale it</button>
+    <button class="tab" role="tab" id="tab-cache" aria-controls="cachetab" aria-selected="false">🗃️ Cache it?</button>
+  </div>
+
+  <section id="lab" role="tabpanel" aria-labelledby="tab-lab">
+    <div class="ctl">
+      <div class="seg" role="group" aria-label="Server"><span class="lbl">Server:</span>
+        <button type="button" data-k="fw" data-v="node">Node (bare)</button><button type="button" data-k="fw" data-v="express">Express</button><button type="button" data-k="fw" data-v="fastify">Fastify</button><button type="button" data-k="fw" data-v="go">Go</button></div>
+      <div class="seg" role="group" aria-label="Node processes" id="l-cores"><span class="lbl">Node processes:</span>
+        <button type="button" data-k="cores" data-v="1">1 (plain node)</button><button type="button" data-k="cores" data-v="4">PM2 × 4</button><button type="button" data-k="cores" data-v="10">PM2 × 10 (-i max)</button></div>
+      <div class="seg" role="group" aria-label="Nginx cache"><span class="lbl">Nginx in front:</span>
+        <button type="button" data-k="cache" data-v="0">no</button><button type="button" data-k="cache" data-v="1">yes, cache 15 s</button></div>
+      <div class="seg" role="group" aria-label="Compression" id="l-zip"><span class="lbl">Compression:</span>
+        <button type="button" data-k="zip" data-v="0">off</button><button type="button" data-k="zip" data-v="1">on</button></div>
+    </div>
+
+    <div class="banner" id="l-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Requests in 1 m 50 s</small><b id="l-req"></b></div>
+      <div class="stat"><small>Requests per second</small><b id="l-rps"></b></div>
+      <div class="stat"><small>Avg latency</small><b id="l-ms"></b></div>
+      <div class="stat"><small>Data sent</small><b id="l-mb"></b></div>
+    </div>
+
+    <h2 style="font-size:14px;margin:4px 0 6px">Your run vs the video’s runs <span class="meta" style="font-weight:400">(req/s · click a run to load it)</span></h2>
+    <ul class="runs" id="l-runs"></ul>
+    <p class="note">A rough model calibrated to the eight runs in the video (k6, MongoDB and the servers all shared his 10-core laptop). Runs not in the video are estimates: Node (bare) on PM2 uses the average of Express and Fastify, 10 workers use Fastify’s drop for all, any cached run is set to the measured 56,631 req/s, and compression uses his prediction (20 GB → 2–3 GB, ~50–53k req/s). Avg latency uses Little’s law: in every run avg latency × req/s ≈ 1,405 waiting users.</p>
+  </section>
+
+  <section id="scale" role="tabpanel" aria-labelledby="tab-scale" hidden></section>
+  <section id="cachetab" role="tabpanel" aria-labelledby="tab-cache" hidden></section>
+
+  <p class="try">Try: <b>Core lab</b> → start with Fastify on 1 core, switch to Go, then back to Fastify with PM2 × 4 and × 10. Put Nginx in front, then turn on compression. <b>Scale it</b> → 11 questions on cores, frameworks and Grafana. <b>Cache it?</b> → 10 questions on what to cache and what it costs.
+  From EP-2 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=PMD1fat6QdY" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+import { fmtNum, fmtBytes } from '../lib.js';
+import { mount, CSS } from '../challenge.js';
+import { SCALE, CACHE } from './scenarios.js';
+
+const $ = id => document.getElementById(id);
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+
+const st = { ...S.RUNS.find(r => r.id === 'fas1').cfg };
+const MAX = Math.max(...S.RUNS.map(r => r.rps));
+const NAME = { node: 'Node', express: 'Express', fastify: 'Fastify', go: 'Go' };
+const est = r => r.measured ? '' : ' <i>(estimate: not run in the video)</i>';
+const MSG = {
+  core: r => ['bad', `🔴 <b>One CPU core is the limit.</b> ${NAME[st.fw]} runs one process on one core, even on a 10-core Mac. Try PM2 × 4.${est(r)}`],
+  go: r => ['good', `✅ <b>Go uses every core by itself.</b> Its runtime spreads the work in the background, with less CPU than Node.${est(r)}`],
+  pm2: r => ['good', `✅ <b>4 workers share the port.</b> Not 4× more: macOS, the browser, k6 and MongoDB share the same cores.${est(r)}`],
+  over: r => ['warn', `🟠 <b>Too many workers.</b> 10 workers fight the OS and the other apps for 10 cores; system load climbs (~650%). Fewer, measured workers win.${est(r)}`],
+  cache: r => ['good', `✅ <b>Nginx answers repeats from its cache for 15 s.</b> No Node, no DB for a HIT. Only for data that may be a few seconds old.${est(r)}`],
+  zip: () => ['warn', '🟠 <b>Compression: far fewer bytes, but the CPU works harder.</b> His prediction, not a measured run: 20 GB → 2–3 GB, 56k → ~50–53k req/s.'],
+};
+
+function draw() {
+  document.querySelectorAll('#lab [data-k]').forEach(b => b.setAttribute('aria-pressed', String(st[b.dataset.k] === true ? 1 : st[b.dataset.k] === false ? 0 : st[b.dataset.k]) === b.dataset.v));
+  $('l-cores').hidden = st.fw === 'go';
+  $('l-zip').hidden = !st.cache;
+  const r = S.run(st), [kind, html] = MSG[r.limit](r);
+  const msg = $('l-msg'); msg.className = `banner ${kind}`; msg.innerHTML = html;
+  $('l-req').textContent = fmtNum(r.requests);
+  $('l-rps').textContent = fmtNum(r.rps);
+  $('l-ms').textContent = `${fmtNum(r.avgMs)} ms`;
+  $('l-mb').textContent = fmtBytes(r.bytes);
+  const bar = (n, cls, label, id) => `<li class="${cls}"><span>${id ? `<button type="button" data-run="${id}">${label}</button>` : label}</span>
+    <div class="track" aria-hidden="true"><i style="width:${Math.min(100, (n / MAX) * 100)}%"></i></div><span class="val">${fmtNum(n)}</span></li>`;
+  $('l-runs').innerHTML = bar(r.rps, 'you', 'Your run') +
+    S.RUNS.map(v => bar(v.rps, S.sameCfg(v.cfg, st) ? 'match' : '', v.label, v.id)).join('');
+}
+document.querySelectorAll('#lab [data-k]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.k; st[k] = k === 'fw' ? b.dataset.v : k === 'cores' ? +b.dataset.v : b.dataset.v === '1'; draw();
+}));
+$('l-runs').addEventListener('click', e => { const b = e.target.closest('[data-run]'); if (b) { Object.assign(st, S.RUNS.find(r => r.id === b.dataset.run).cfg); draw(); } });
+draw();
+
+const style = document.createElement('style'); style.textContent = CSS; document.head.append(style);
+mount($('scale'), SCALE);
+mount($('cachetab'), CACHE);
+</script>
+</body>
+</html>

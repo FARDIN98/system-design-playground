@@ -60,6 +60,7 @@ ol.pz button.act { padding: 2px 8px; font-size: 13px; }
     <span class="lbl">Episode:</span>
     <button type="button" data-ep="ep1">EP-1</button>
     <button type="button" data-ep="ep11">EP-1.1</button>
+    <button type="button" data-ep="ep2">EP-2</button>
     <button type="button" data-ep="ep4">EP-4</button>
     <button type="button" data-ep="all">All</button>
   </div>
@@ -101,10 +102,11 @@ ol.pz button.act { padding: 2px 8px; font-size: 13px; }
 import ep1 from '../data/ep1.js';
 import ep4 from '../data/ep4.js';
 import ep11 from '../data/ep11.js';
+import ep2 from '../data/ep2.js';
 import { CONCEPTS, LINKS } from '../data/concepts.js';
 import * as L from '../lib.js';
 
-const EPS = { ep1, ep11, ep4 };
+const EPS = { ep1, ep11, ep2, ep4 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const p2 = n => String(n).padStart(2, '0');
@@ -271,9 +273,10 @@ $('puzzle').addEventListener('dragend', () => { dragFrom = null; drawPuzzle(); }
 const byId = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
 const epsOf = c => Object.keys(c.t);
 const only = (c, e) => epsOf(c).length === 1 && epsOf(c)[0] === e;
-// column 0: EP-1 · column 1: shared, then EP-1.1 · column 2: EP-4 (keeps every link short)
+// column 0: EP-1, then EP-2 · column 1: shared, then EP-1.1 · column 2: EP-4 (keeps every link short)
 const GROUPS = [
   { h: 'EP-1', col: 0, has: c => only(c, 'ep1') },
+  { h: 'EP-2', col: 0, has: c => only(c, 'ep2') },
   { h: 'In 2+ episodes', col: 1, has: c => epsOf(c).length > 1 },
   { h: 'EP-1.1', col: 1, has: c => only(c, 'ep11') },
   { h: 'EP-4', col: 2, has: c => only(c, 'ep4') },
