@@ -168,8 +168,20 @@ export const DRILLS = {
       unit: 'MB', answer: (users * 8) / 1e6,
       working: `${fmtNum(users)} × 8 B = ${fmtNum(users * 8)} B ≈ <b>${fmtBytes(users * 8)}</b> for one post, before any overhead. Redis’s HyperLogLog stays ~12 KB with ~0.81% error (general), which is why EP-5 used it for unique views.` };
   },
+  seed(rnd) {
+    const n = pick([5000, 1e5, 1e6], rnd);
+    return { kind: 'seed', q: `EP-6 seeded <b>100 products in 7.4 s</b> through Kafka (tags + vectors). At the same rate, about how many <b>minutes</b> for <b>${indian(n)}</b> products?`,
+      unit: 'min', answer: (n * 7.4) / 100 / 60,
+      working: `7.4 s ÷ 100 = 0.074 s per product. ${fmtNum(n)} × 0.074 s = ${fmtNum(n * 0.074)} s ≈ <b>${fmtNum((n * 0.074) / 60)}</b> min on one laptop. That’s why old products go through a night batch job, and why you add workers (general).` };
+  },
+  vecmem(rnd) {
+    const n = pick([1e4, 1e5, 1e6], rnd);
+    return { kind: 'vecmem', q: `Each product has a BGE-M3 vector of <b>1,024 numbers</b> at <b>4 bytes</b> each (general). Typesense keeps the index in RAM. About how many <b>MB</b> of vectors for <b>${indian(n)}</b> products?`,
+      unit: 'MB', answer: (n * 1024 * 4) / 1e6,
+      working: `1,024 × 4 B = 4,096 B ≈ 4 KB per product. ${fmtNum(n)} × 4 KB ≈ <b>${fmtBytes(n * 4096)}</b>, before the text fields and index overhead (general). RAM is the price of Typesense’s speed.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'], ep5: ['batch', 'uniq', 'servers'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'], ep5: ['batch', 'uniq', 'servers'], ep6: ['seed', 'vecmem', 'servers'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;

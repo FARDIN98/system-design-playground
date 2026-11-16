@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search Lab Playground</title>
+<meta name="description" content="Type a query the way shoppers do and add the search layers one by one: wildcard, typos, AI tags in every language, meaning. Then review missed searches as the admin.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.ctl { display: grid; gap: 8px; margin-bottom: 12px; }
+.ctl .seg { margin: 0; align-items: center; }
+.seg .lbl { min-width: 110px; }
+.qrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.qrow input { flex: 1; min-width: 200px; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; }
+.qrow input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { font-size: 13.5px; }
+.res { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
+.res li { display: flex; justify-content: space-between; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.why { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; background: var(--a-soft); white-space: nowrap; }
+.miss { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; }
+.miss li { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface); }
+.miss .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.miss small { color: var(--muted); }
+.miss .done { font-size: 13.5px; margin-top: 6px; }
+@media (max-width: 520px) { .seg .lbl { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Search lab</h1>
+  <p class="sub">EP-6: Blinkit-style search in any Indian language. Add the layers one by one and watch what each one finds.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-lab" aria-controls="lab" aria-selected="true">🔎 Search lab</button>
+    <button class="tab" role="tab" id="tab-miss" aria-controls="miss" aria-selected="false">🧑‍💼 Missed searches</button>
+    <button class="tab" role="tab" id="tab-tool" aria-controls="tool" aria-selected="false">🧩 Which piece?</button>
+    <button class="tab" role="tab" id="tab-calls" aria-controls="calls" aria-selected="false">🧭 Design calls</button>
+  </div>
+
+  <section id="lab" role="tabpanel" aria-labelledby="tab-lab">
+    <div class="ctl">
+      <div class="qrow"><label for="s-q" class="lbl">Search:</label><input id="s-q" type="search" autocomplete="off" value="मच्छर खा गए रे बाबा"></div>
+      <div class="presets" id="s-presets" aria-label="Example searches"></div>
+      <div class="seg" role="group" aria-label="Search layers" id="s-level"><span class="lbl">Layers:</span></div>
+      <div class="seg" role="group" aria-label="Dark store" id="s-store"><span class="lbl">Dark store:</span></div>
+    </div>
+    <div class="banner" id="s-msg" role="status" aria-live="polite"></div>
+    <ul class="res" id="s-res"></ul>
+    <p class="note" id="s-cache"></p>
+    <p class="note">A toy: a small meaning table stands in for BGE-M3 vectors, and 14 products stand in for the catalog. The tags copy the kind his Gemma 3 prompt wrote (milk → doodh, दूध, paal and typos like “mikl”). Typos: 1 edit for short words, 2 for long ones (general).</p>
+  </section>
+
+  <section id="miss" role="tabpanel" aria-labelledby="tab-miss" hidden>
+    <p>Zero-result searches land here. The AI suggests a match; you approve or reject with one click. Nothing is added automatically.</p>
+    <div class="seg" role="group" aria-label="Ollama" id="m-model"><span class="lbl">Ollama:</span>
+      <button type="button" data-v="1">running</button><button type="button" data-v="0">down</button></div>
+    <ul class="miss" id="m-list"></ul>
+    <p class="note">Your own zero-result searches from the lab are added at the top (the AI has no suggestion for them here).</p>
+  </section>
+
+  <section id="tool" role="tabpanel" aria-labelledby="tab-tool" hidden></section>
+  <section id="calls" role="tabpanel" aria-labelledby="tab-calls" hidden></section>
+
+  <p class="try">Try: <b>Search lab</b> → “मच्छर खा गए रे बाबा” with each layer, then switch the store. Search “kanda” (nothing), then approve it in <b>Missed searches</b> and search again. Turn Ollama off and approve: it fails closed.
+  From EP-6 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=IMTl_De78GE" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+import { mount, CSS } from '../challenge.js';
+import { TOOL, CALLS } from './scenarios.js';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+
+const st = { level: 3, store: 'cp', modelUp: true };
+const cache = new Map(), userMissed = [], WHY = { name: 'name', typo: 'typo', tag: 'AI tag', 'tag+typo': 'AI tag + typo', meaning: 'meaning (vector)' };
+$('s-presets').innerHTML = S.QUERIES.map(q => `<button type="button" class="act" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+$('s-level').insertAdjacentHTML('beforeend', S.LAYERS.map(([, l], i) => `<button type="button" data-v="${i}">${l}</button>`).join(''));
+$('s-store').insertAdjacentHTML('beforeend', S.STORES.map(s => `<button type="button" data-v="${s.id}">${s.name}</button>`).join(''));
+
+function run() {
+  const q = $('s-q').value.trim();
+  document.querySelectorAll('#s-level [data-v]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === st.level));
+  document.querySelectorAll('#s-store [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === st.store));
+  if (!q) { $('s-msg').className = 'banner'; $('s-msg').textContent = 'Type something, or pick an example.'; $('s-res').innerHTML = ''; $('s-cache').textContent = ''; return; }
+  // the cache key includes the layer setting only because this lab lets you change it
+  const r = S.cached(cache, `${st.store}|${st.level}|${q.toLowerCase()}`, Date.now(), () => S.search(q, st.level, st.store));
+  const n = r.results.length, other = r.elsewhere.length, store = S.STORES.find(s => s.id === st.store).name;
+  const msg = $('s-msg');
+  if (n) { msg.className = 'banner good'; msg.innerHTML = `✅ <b>${n} result${n > 1 ? 's' : ''}</b> at ${esc(store)}.${st.level < 3 ? ' Add the next layer to see what else it finds.' : ''}`; }
+  else if (other) { msg.className = 'banner warn'; msg.innerHTML = `🟠 <b>Nothing in stock at ${esc(store)}.</b> ${other} match${other > 1 ? 'es' : ''} at the other store: search only shows your dark store’s stock.`; }
+  else {
+    msg.className = 'banner bad';
+    msg.innerHTML = st.level < 3 ? `🔴 <b>0 results.</b> This layer can’t see it. Turn on the next one.` : `🔴 <b>0 results, even with every layer.</b> Logged as a missed search for the admin.`;
+    if (st.level === 3 && !r.hit && !S.MISSED.some(m => m.q === q) && !userMissed.some(m => m.q === q)) { userMissed.unshift({ q, suggest: null, note: 'Your search. No AI suggestion in this toy: reject it, or log it as demand.' }); drawMissed(); }
+  }
+  $('s-res').innerHTML = r.results.map(h => `<li><span>${esc(h.p.name)}</span><span class="why">${WHY[h.why]}</span></li>`).join('');
+  $('s-cache').innerHTML = r.hit ? '⚡ <b>Redis hit</b>: the same search in the last 60 s, so BGE-M3 and Typesense were skipped.' : 'Redis miss → query vector + hybrid query in Typesense → result cached for 60 s. Search again to hit the cache.';
+}
+let tm;
+$('s-q').addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(run, 300); }); // debounce, like his app
+$('s-presets').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('s-q').value = b.dataset.q; run(); } });
+$('s-level').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.level = +b.dataset.v; run(); } });
+$('s-store').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.store = b.dataset.v; run(); } });
+
+const decided = new Map();
+function drawMissed() {
+  document.querySelectorAll('#m-model [data-v]').forEach(b => b.setAttribute('aria-pressed', (b.dataset.v === '1') === st.modelUp));
+  $('m-list').innerHTML = [...userMissed, ...S.MISSED].map((m, i) => {
+    const p = S.CATALOG.find(x => x.id === m.suggest), d = decided.get(m.q);
+    return `<li><div class="row"><span><b>“${esc(m.q)}”</b> → AI suggests: ${p ? `<b>${esc(p.name)}</b>` : '<i>no match</i>'}</span>
+      <span><button type="button" class="act" data-i="${i}" data-a="ok"${d?.ok ? ' disabled' : ''}>Approve</button> <button type="button" class="act" data-i="${i}" data-a="no"${d?.ok ? ' disabled' : ''}>Reject</button></span></div>
+      <small>${esc(m.note)}</small>${d ? `<div class="done banner ${d.ok ? 'good' : 'warn'}">${d.ok ? '✅' : '🛑'} ${esc(d.why)}</div>` : ''}</li>`;
+  }).join('');
+}
+$('m-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const m = [...userMissed, ...S.MISSED][+b.dataset.i];
+  decided.set(m.q, b.dataset.a === 'ok' ? S.approve(m, { modelUp: st.modelUp }) : { ok: false, why: 'Rejected. Nothing changes in the catalog.' });
+  cache.clear(); drawMissed();
+});
+$('m-model').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.modelUp = b.dataset.v === '1'; drawMissed(); } });
+
+run(); drawMissed();
+const style = document.createElement('style'); style.textContent = CSS; document.head.append(style);
+mount($('tool'), TOOL);
+mount($('calls'), CALLS);
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@ export const CONCEPTS = [
   { id: 'gateway', label: 'API gateway', t: { ep1: 552 }, def: 'The front door: routes each request to the right service and hides the backend.' },
   { id: 'hotspot', label: 'Hotspot', t: { ep1: 552 }, def: 'One server or DB getting most of the traffic.' },
   { id: 'ttl', label: 'Seat lock + TTL', t: { ep1: 552 }, def: 'Hold a seat in Redis with a time-to-live, so the lock expires by itself. Stops double booking.' },
-  { id: 'queue', label: 'Queue (Kafka)', t: { ep1: 1447, ep5: 1001 }, def: 'Accept the order now; email, stock, SMS and push happen in the background. EP-5: likes and views wait in Kafka topics and are written in batches.' },
+  { id: 'queue', label: 'Queue (Kafka)', t: { ep1: 1447, ep5: 1001, ep6: 341 }, def: 'Accept the order now; email, stock, SMS and push happen in the background. EP-5: likes and views wait in Kafka topics and are written in batches. EP-6: a new product goes through Kafka; a worker tags and embeds it.' },
   { id: 'cap', label: 'CAP theorem', t: { ep1: 1660 }, def: 'With data on many nodes, during a network split you choose consistency or availability.' },
   { id: 'partition', label: 'Partition', t: { ep1: 1752 }, def: 'A network split between DB nodes. The P in CAP is keeping working through it.' },
   { id: 'replication', label: 'Replication', t: { ep1: 1752 }, def: 'Copies of the same data on several nodes. More read capacity, and a backup.' },
@@ -21,8 +21,8 @@ export const CONCEPTS = [
   // in 2+ episodes
   { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
   { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970, ep3: 994 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
-  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479, ep5: 1184 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis.' },
-  { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
+  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479, ep5: 1184, ep6: 1446 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis. EP-6: popular searches and query vectors are cached for 60 s.' },
+  { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479, ep6: 281 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers. EP-6: “a truck that can do everything”; he picked the lighter Typesense.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
   { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862, ep2: 893, ep3: 1422 }, def: 'Send many users and requests to find the threshold. EP-4, EP-1.1, EP-2 and EP-3 used Grafana k6.' },
@@ -41,12 +41,12 @@ export const CONCEPTS = [
   { id: 'rebuild', label: 'Rebuild on restart', t: { ep4: 2805 }, def: 'Bloom and Fuse rebuild by scanning the DB (300 crore ≈ 3 h for Fuse); Cuckoo loads its saved file.' },
   { id: 'hashprefix', label: 'Hash Prefix (Chrome)', t: { ep4: 1416 }, def: 'What Chrome Safe Browsing really uses: Bloom-like logic to check malicious URLs locally.' },
   // EP-1.1
-  { id: 'guardrails', label: 'AI guardrails', t: { ep11: 1625 }, def: 'Rules for an AI agent: run nothing without OK, no push, no DB or file deletes, stay in the folder, plan first.' },
-  { id: 'hooks', label: 'Hooks', t: { ep11: 1716 }, def: 'Scripts that run before each AI tool call and can block it (exit code 2), even in auto mode.' },
+  { id: 'guardrails', label: 'AI guardrails', t: { ep11: 1625, ep6: 1354 }, def: 'Rules for an AI agent: run nothing without OK, no push, no DB or file deletes, stay in the folder, plan first. EP-6: the model only generates; it never touches the DB.' },
+  { id: 'hooks', label: 'Hooks', t: { ep11: 1716, ep6: 1932 }, def: 'Scripts that run before each AI tool call and can block it (exit code 2), even in auto mode. EP-6: the no-abusive-tags rule is saved as a hook too.' },
   { id: 'featurebased', label: 'Feature-based folders', t: { ep11: 2604 }, def: 'One folder per feature with its route, schema, service, repository and types.' },
   { id: 'layers', label: 'Request layers', t: { ep11: 3557 }, def: 'Route → schema check → service → repository → DB. 404 if no route, 400 if bad input.' },
   { id: 'docker', label: 'Docker', t: { ep11: 2973 }, def: 'Packs the app with its environment so it runs the same on every machine. Costs laptop speed.' },
-  { id: 'seed', label: 'Seed + Swagger', t: { ep11: 3314 }, def: 'Seed fills the DB with test data; Swagger lists every API at /docs so you can try it.' },
+  { id: 'seed', label: 'Seed + Swagger', t: { ep11: 3314, ep6: 2446 }, def: 'Seed fills the DB with test data; Swagger lists every API at /docs so you can try it. EP-6: 100 products seeded through Kafka in 7.4 s.' },
   { id: 'vu', label: 'Virtual users + sleep', t: { ep11: 4660 }, def: 'k6 VUs loop over the script. sleep(1) caps each at ~1 request/s, so requests ≈ VUs × seconds.' },
   { id: 'pm2', label: 'PM2 cluster', t: { ep11: 4413, ep2: 1608 }, def: 'Runs one Node worker per CPU core on the same port and restarts a worker that crashes.' },
   { id: 'revproxy', label: 'Reverse proxy', t: { ep11: 5274, ep2: 1947 }, def: 'Nginx in front: clients hit :8080, Nginx forwards to the app on :3000, which stays hidden.' },
@@ -57,7 +57,7 @@ export const CONCEPTS = [
   { id: 'frameworks', label: 'Node vs Express vs Fastify vs Go', t: { ep2: 1505 }, def: 'One core, 3000 users: 5,225 · 5,101 · 6,545 · 17,704 req/s. Go uses every core by itself.' },
   { id: 'corelimit', label: 'More cores ≠ more speed', t: { ep2: 2408 }, def: 'Fastify on 10 PM2 workers did 9,741 req/s vs 15,010 on 4: the cores were shared with the OS and other apps.' },
   { id: 'cpuload', label: 'CPU busy vs system load', t: { ep2: 1078 }, def: 'CPU busy = how hard the CPU works now (the cashier). System load = tasks waiting in the queue (the line).' },
-  { id: 'p95', label: 'p95 latency', t: { ep2: 1047 }, def: '95% of requests were faster than this. In his runs it rose once CPU passed ~50%.' },
+  { id: 'p95', label: 'p95 latency', t: { ep2: 1047, ep6: 587 }, def: '95% of requests were faster than this. In his runs it rose once CPU passed ~50%. EP-6: the search dashboard shows P50 / P95.' },
   { id: 'nginxcache', label: 'Nginx cache (15 s)', t: { ep2: 1947 }, def: 'proxy_cache keeps each 200 reply for 15 s, so repeat requests skip Node and the DB: 56,631 req/s.' },
   { id: 'stale', label: 'Cache what can be stale', t: { ep2: 2008 }, def: 'A bank balance must be exact (don’t cache); history, likes and product lists can be seconds old (cache).' },
   // EP-3
@@ -70,7 +70,7 @@ export const CONCEPTS = [
   { id: 'separate', label: 'Separate test, proxy, app, DB', t: { ep3: 1881 }, def: 'k6, Nginx and MongoDB on the app server stole its CPU (>95%). Give each its own machine.' },
   // EP-5
   { id: 'batching', label: 'Batch the writes', t: { ep5: 939 }, def: 'Group many events into one write, like Amazon packing a day’s parcels into one van. One DB write per like chokes the DB.' },
-  { id: 'accept202', label: '202 Accepted', t: { ep5: 2230 }, def: 'The like API puts the event in Kafka and replies 202 at once; a consumer writes later. The user never waits on the DB.' },
+  { id: 'accept202', label: '202 Accepted', t: { ep5: 2230, ep6: 311 }, def: 'The like API puts the event in Kafka and replies 202 at once; a consumer writes later. The user never waits on the DB. EP-6: saving a product returns 202; the AI work runs in a worker.' },
   { id: 'optimistic', label: 'Optimistic update', t: { ep5: 4202 }, def: 'The heart turns red and +1 shows at once; 1.5 s later the page asks again and shows the real number.' },
   { id: 'counter', label: 'Redis counters', t: { ep5: 1801 }, def: 'post:{id}:likes / :views / :comments, kept up to date by the consumer and read in one pipelined call. Never a DB count on page load.' },
   { id: 'hll', label: 'HyperLogLog', t: { ep5: 1214 }, def: 'Unique views in a few KB of hashes (PFADD / PFCOUNT). Small error; it can’t remove or answer “did user X view?”.' },
@@ -78,6 +78,17 @@ export const CONCEPTS = [
   { id: 'deletedcount', label: 'deletedCount guard', t: { ep5: 2540 }, def: 'On unlike, decrement only if deleteOne really removed a row. A repeated unlike leaves the counter alone, never below 0.' },
   { id: 'drift', label: 'Counter drift + reconcile', t: { ep5: 2293 }, def: 'A crash between the Mongo insert and the Redis +1 leaves the counter a bit low. A reconcile job fixes it later.' },
   { id: 'lua', label: 'Lua script in Redis', t: { ep5: 3399 }, def: 'Many Redis commands in one call, run atomically: fewer network trips and no half-done updates. He ran Cuckoo this way.' },
+  // EP-6
+  { id: 'multilingual', label: 'Multilingual search', t: { ep6: 496 }, def: 'People search in their own language, script and spelling (“MIKL milk”, “आलू”, “मच्छर खा गए रे बाबा”); the search must still find the product.' },
+  { id: 'aitags', label: 'AI tags at write time', t: { ep6: 1384 }, def: 'When a product is added, a local LLM (Gemma 3 4B) writes tags in 10+ languages plus typos: potato, aloo, आलू, batata. Keyword search matches them.' },
+  { id: 'embeddings', label: 'Vectors (embeddings)', t: { ep6: 1415 }, def: 'BGE-M3 turns text into numbers; “आलू” lands next to “potato”, so meaning matches even when a tag is missing.' },
+  { id: 'hybrid', label: 'Hybrid search (Typesense)', t: { ep6: 251 }, def: 'Keyword score + vector score in one rank. Typesense keeps the index in RAM and tolerates typos.' },
+  { id: 'localllm', label: 'Local model (Ollama)', t: { ep6: 1200 }, def: 'Run Gemma 3 and BGE-M3 on your own machine: no per-call cost, but your hardware (8 GB RAM works, 16 GB ideal). Keep the provider swappable.' },
+  { id: 'nightbatch', label: 'Night batch job', t: { ep6: 924 }, def: 'Existing products go through the same Kafka pipeline at night to be re-tagged and re-embedded in bulk.' },
+  { id: 'dlq', label: 'Dead-letter topic', t: { ep6: 1446 }, def: 'An event that fails 3 retries goes to products.ingest.dlq instead of blocking the queue.' },
+  { id: 'darkstore', label: 'Dark store / pincode', t: { ep6: 2052 }, def: 'A pincode maps to a nearby store; every search carries its store id, so results come only from that store’s stock.' },
+  { id: 'humanloop', label: 'Admin approves', t: { ep6: 1751 }, def: 'Missed searches are never auto-added: the AI suggests a match and an admin approves with one click. One wrong tag spoils every search.' },
+  { id: 'failclosed', label: 'Fail closed', t: { ep6: 1962 }, def: 'If the model is down or a word looks unsafe, add nothing; the tag stays pending. Bad words are checked at 5 places.' },
 ];
 
 export const LINKS = [
@@ -99,4 +110,7 @@ export const LINKS = [
   ['queue', 'batching'], ['batching', 'accept202'], ['queue', 'accept202'], ['accept202', 'optimistic'], ['cache', 'counter'],
   ['counter', 'hll'], ['hll', 'cuckoo'], ['queue', 'atleastonce'], ['indexing', 'atleastonce'], ['atleastonce', 'deletedcount'],
   ['counter', 'deletedcount'], ['counter', 'drift'], ['lua', 'counter'], ['lua', 'cuckoo'],
+  ['multilingual', 'aitags'], ['multilingual', 'embeddings'], ['aitags', 'hybrid'], ['embeddings', 'hybrid'], ['hybrid', 'search'], ['hybrid', 'cache'],
+  ['localllm', 'aitags'], ['localllm', 'embeddings'], ['aitags', 'queue'], ['queue', 'dlq'], ['nightbatch', 'queue'], ['nightbatch', 'aitags'],
+  ['darkstore', 'hybrid'], ['humanloop', 'aitags'], ['humanloop', 'guardrails'], ['failclosed', 'guardrails'], ['failclosed', 'localllm'],
 ];
