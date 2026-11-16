@@ -12,8 +12,8 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
 <div class="sheet">
   <header>
-    <h1>System design interview · the last hour<br><small style="font-size:9pt;font-weight:500">EP-1 HLD + CAP · EP-2/3 scale up &amp; out · EP-4 filters · EP-5 counts</small></h1>
-    <p>Ankit Jain · System Design series (YouTube)<br>EP-1 <a href="https://www.youtube.com/watch?v=DCYaJb8Bzdk">DCYaJb8Bzdk</a> · EP-2 <a href="https://www.youtube.com/watch?v=PMD1fat6QdY">PMD1fat6QdY</a><br>EP-3 <a href="https://www.youtube.com/watch?v=pgLHXxW3Mg0">pgLHXxW3Mg0</a> · EP-4 <a href="https://www.youtube.com/watch?v=B8hMPCM7i8w">B8hMPCM7i8w</a><br>EP-5 <a href="https://www.youtube.com/watch?v=Oaf83IA_meM">Oaf83IA_meM</a><br>“(general)” = standard practice, not from the videos</p>
+    <h1>System design interview · the last hour<br><small style="font-size:9pt;font-weight:500">EP-1 HLD · 1.1 to prod · 2/3 scale up &amp; out · 4 filters · 5 counts</small></h1>
+    <p>Ankit Jain · System Design series (YouTube)<br>EP-1 <a href="https://www.youtube.com/watch?v=DCYaJb8Bzdk">DCYaJb8Bzdk</a> · EP-1.1 <a href="https://www.youtube.com/watch?v=9xFPOmZZ4uQ">9xFPOmZZ4uQ</a><br>EP-2 <a href="https://www.youtube.com/watch?v=PMD1fat6QdY">PMD1fat6QdY</a> · EP-3 <a href="https://www.youtube.com/watch?v=pgLHXxW3Mg0">pgLHXxW3Mg0</a><br>EP-4 <a href="https://www.youtube.com/watch?v=B8hMPCM7i8w">B8hMPCM7i8w</a> · EP-5 <a href="https://www.youtube.com/watch?v=Oaf83IA_meM">Oaf83IA_meM</a><br>“(general)” = standard practice, not from the videos</p>
   </header>
 
   <div class="cols">
@@ -88,8 +88,8 @@
         <tr><td>All-new names / all-existing</td><td class="n">68k vs ~17k req/s</td></tr>
         <tr><td>300 Cr: 3 filters · index</td><td class="n">7.2/6.8/14.7 · ~90 GB</td></tr>
         <tr><td>Bloom copy per worker</td><td class="n">4 × 7.2 ≈ 29 GB</td></tr>
-        <tr><td>Fuse rebuild at 300 Cr</td><td class="n">≈ 3 hours</td></tr>
-        <tr><td>Filter saving at 300 Cr</td><td class="n">~36%, from reads</td></tr>
+        <tr><td>300 Cr: Fuse rebuild · saving</td><td class="n">≈ 3 h · ~36% (reads)</td></tr>
+        <tr><td>k6: 1 core / PM2 × 4 / Nginx</td><td class="n">126k · ~157k · 134k req</td></tr>
         <tr><td>1 core: Express/Fastify/Go</td><td class="n">5.1k · 6.5k · 17.7k req/s</td></tr>
         <tr><td>1 Mac / 2 on Wi-Fi / 2 on LAN</td><td class="n">1.24M · 62k · 1.02M req</td></tr>
         <tr><td>No like queue needed at</td><td class="n">500–600 likes</td></tr>
@@ -109,11 +109,13 @@
     </section>
 
     <section>
-      <h2>Scale it: up, then out <small>· EP-2, EP-3</small></h2>
+      <h2>Scale it: up, then out <small>· EP-1.1, 2, 3</small></h2>
       <table class="scale">
         <tr><td>Measure</td><td>one box, the same k6 test each run, cool down</td></tr>
+        <tr><td>Test limit</td><td>requests ≈ VUs × s → k6’s sleep is the limit</td></tr>
         <tr><td>Cores</td><td>Node = 1 core → PM2 × 4: 15,010 (2.29×); × 10: 9,741</td></tr>
         <tr><td>Cache</td><td>Nginx 15 s → 56,631 req/s; only data that may be stale</td></tr>
+        <tr><td>Proxy</td><td>Nginx: one public port, gzip; 512 → 8192 conns</td></tr>
         <tr><td>Out</td><td>2+ servers behind Nginx, on a wired LAN</td></tr>
         <tr><td>LB</td><td>round robin · least_conn · ip_hash (sticky)</td></tr>
       </table>
@@ -132,9 +134,9 @@
     <section>
       <h2>CAP in one line each</h2>
       <table>
-        <tr><td><b>C</b>onsistency</td><td>same correct data everywhere → balances, seats, money</td></tr>
-        <tr><td><b>A</b>vailability</td><td>always answers, maybe stale → likes, views, cached lists</td></tr>
-        <tr><td><b>P</b>artition tol.</td><td>keeps working across nodes when the network splits; then choose C or A</td></tr>
+        <tr><td><b>C</b>onsistency</td><td>same correct data everywhere → money, seats</td></tr>
+        <tr><td><b>A</b>vailability</td><td>always answers, maybe stale → likes, views</td></tr>
+        <tr><td><b>P</b>artition tol.</td><td>survives a network split; then pick C or A</td></tr>
       </table>
     </section>
 
@@ -142,7 +144,8 @@
       <h2>Say it like this</h2>
       <ul class="say">
         <li>“Seats and money need consistency; on a split I refuse rather than double-book. Likes can be available and a bit stale.”</li>
-        <li>“I squeeze one box first (PM2 workers, a short cache), then scale out behind a load balancer. Slower after? I check the network first.”</li>
+        <li>“I squeeze one box first (PM2, a short cache), then scale out behind an LB. Slower after? I check the network.”</li>
+        <li>“Nginx sits in front: one public port, HTTPS and gzip at the edge; the app port stays private.”</li>
         <li>“Likes go to Kafka and return 202; a consumer writes in batches and counts come from Redis.”</li>
         <li>“A Seat Lock in Redis with a TTL holds the seat and frees itself if they don’t pay.”</li>
         <li>“The filter’s NO is a promise, its YES is a rumour, so I confirm every YES in the DB. It cuts read cost, not storage.”</li>
@@ -155,12 +158,13 @@
       <ul class="flags">
         <li>One server or one DB for everything; scaling with no load test.</li>
         <li><code>pm2 -i max</code> on a shared box; servers linked over Wi-Fi.</li>
-        <li>A seat lock with no TTL (or none); availability for balances or payments.</li>
+        <li>Plain <code>node</code> in production; a k6 number without reading the script.</li>
+        <li>No TTL on a seat lock; availability for money.</li>
         <li>Email and SMS inside the checkout request (use a queue).</li>
         <li>One DB write per like; HyperLogLog for likes (it can’t subtract).</li>
         <li>Saying “taken” because the filter said maybe.</li>
         <li>Deleting from a Bloom filter; Fuse for data that keeps changing.</li>
-        <li>Forgetting RAM × workers, sync across servers, and sharding at 300 Cr.</li>
+        <li>At 300 Cr: forgetting RAM × workers, sync, sharding.</li>
         <li>Trusting file extensions, or an AI answer, without checking.</li>
       </ul>
     </section>
