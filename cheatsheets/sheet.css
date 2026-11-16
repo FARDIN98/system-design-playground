@@ -55,3 +55,6 @@ a { color: var(--a); text-decoration: none; }
   header p { text-align: left; }
   body { font-size: 10.5pt; }
 }
+/* Multi-page sheets (all.html): each .sheet is one A4 page. */
+.sheet + .sheet { break-before: page; }
+@media screen { .sheet + .sheet { margin-top: 8mm; } }

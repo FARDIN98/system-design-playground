@@ -172,8 +172,97 @@
 
   <footer><span>From Ankit Jain’s public videos; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
 </div>
-<script>/* build.sh check: flags content that would be clipped off the A4 page */
-{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
- if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+<div class="sheet">
+  <header>
+    <h1>System design interview · the last hour<br><small style="font-size:9pt;font-weight:500">Page 2 · EP-6 multilingual search (AI tags, vectors, Typesense)</small></h1>
+    <p>Ankit Jain · System Design series (YouTube)<br>EP-6 <a href="https://www.youtube.com/watch?v=IMTl_De78GE">IMTl_De78GE</a><br>“(general)” = standard practice, not from the videos</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>EP-6 · multilingual quick-commerce search: write path and search path <small>· ▶ 05:11 · 23:04 · 24:06</small></h2>
+      <svg viewBox="0 0 360 109" role="img" aria-label="Write: the admin presses Generate with AI and edits tag chips, the API validates, publishes to the Kafka topic products.ingest and replies 202; an AI worker keeps or generates tags with Gemma 3, makes a vector with BGE-M3, runs the guard, then writes MongoDB, Typesense and Redis. A night batch job sends old products through the same pipeline. Search: the shopper's query and store id go to Redis first; on a miss the query vector comes from the qvec cache or BGE-M3, then a Typesense hybrid query filtered to the store ranks the results, which are cached for 60 seconds.">
+        <text x="2" y="7" class="b">✍️ WRITE · admin adds a product</text>
+        <rect class="bx" x="2" y="12" width="50" height="26" rx="3"/><text x="27" y="23" text-anchor="middle" class="b">🧑‍💼 Admin</text><text x="27" y="32" text-anchor="middle" class="s">AI tag chips</text>
+        <rect class="hot" x="58" y="12" width="44" height="26" rx="3"/><text x="80" y="23" text-anchor="middle" class="b">API</text><text x="80" y="32" text-anchor="middle" class="s">validate</text>
+        <rect class="hot" x="108" y="12" width="66" height="26" rx="3"/><text x="141" y="23" text-anchor="middle" class="b">Kafka</text><text x="141" y="32" text-anchor="middle" class="s">products.ingest</text>
+        <rect class="bx" x="180" y="12" width="70" height="26" rx="3"/><text x="215" y="23" text-anchor="middle" class="b">AI worker</text><text x="215" y="32" text-anchor="middle" class="s">tags · vector · guard</text>
+        <rect class="ok" x="256" y="4" width="102" height="11" rx="3"/><text x="307" y="12" text-anchor="middle" class="s">MongoDB: source of truth</text>
+        <rect class="ok" x="256" y="19" width="102" height="11" rx="3"/><text x="307" y="27" text-anchor="middle" class="s">Typesense: keyword + vector</text>
+        <rect class="ok" x="256" y="34" width="102" height="11" rx="3"/><text x="307" y="42" text-anchor="middle" class="s">Redis: hot cache</text>
+        <path class="ln" d="M52,25 L57,25"/><path class="ln" d="M102,25 L107,25"/><path class="ln" d="M174,25 L179,25"/><path class="ln g" d="M250,20 L255,11"/><path class="ln g" d="M250,25 L255,25"/><path class="ln g" d="M250,30 L255,39"/>
+        <path class="ln g d" d="M80,38 V44 H27 V39"/><text x="86" y="48" class="s">202 at once · 3 failed retries → .dlq</text>
+        <text x="2" y="59" class="b">🔎 SEARCH · “मच्छर खा गए रे बाबा” at store S12</text>
+        <rect class="bx" x="2" y="64" width="50" height="26" rx="3"/><text x="27" y="75" text-anchor="middle" class="b">📱 Shopper</text><text x="27" y="84" text-anchor="middle" class="s">q + store</text>
+        <rect class="ok" x="58" y="64" width="56" height="26" rx="3"/><text x="86" y="75" text-anchor="middle" class="b">Redis</text><text x="86" y="84" text-anchor="middle" class="s">search:{q} 60 s</text>
+        <rect class="hot" x="122" y="64" width="64" height="26" rx="3"/><text x="154" y="75" text-anchor="middle" class="b">Query vector</text><text x="154" y="84" text-anchor="middle" class="s">qvec or BGE-M3</text>
+        <rect class="hot" x="194" y="64" width="84" height="26" rx="3"/><text x="236" y="75" text-anchor="middle" class="b">Typesense hybrid</text><text x="236" y="84" text-anchor="middle" class="s">filter store · rank</text>
+        <rect class="ok" x="286" y="64" width="72" height="26" rx="3"/><text x="322" y="75" text-anchor="middle" class="b">All Out on top</text><text x="322" y="84" text-anchor="middle" class="s">cache 60 s</text>
+        <path class="ln" d="M52,77 L57,77"/><path class="ln" d="M114,77 L121,77"/><path class="ln" d="M186,77 L193,77"/><path class="ln g" d="M278,77 L285,77"/>
+        <text x="60" y="97" class="s">hit → BGE-M3 and Typesense both skipped · 🌙 night batch: old products → the same Kafka pipeline</text>
+        <text x="2" y="106" class="s">Tags once at write time · vectors at write + search time · keyword + vector in one rank.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>Who keeps what <small>· EP-6 · ▶ 24:06</small></h2>
+      <table class="scale">
+        <tr><td><b>MongoDB</b></td><td>product, tags, category, vector: <b>source of truth</b></td></tr>
+        <tr><td><b>Typesense</b></td><td>name, tags, category, price, stock, vector: in RAM, typos, hybrid</td></tr>
+        <tr><td><b>Redis</b></td><td><code>product:{id}</code> · <code>qvec:{query}</code> · <code>search:{q}</code> 60 s</td></tr>
+        <tr><td><b>Kafka</b></td><td><code>products.ingest</code> · <code>.dlq</code> · <code>search.events</code></td></tr>
+        <tr><td><b>Gemma 3 4B</b></td><td>tags in 10+ languages + Roman + typos (Ollama)</td></tr>
+        <tr><td><b>BGE-M3</b></td><td>vectors: “आलू” lands next to “potato”</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Numbers to remember <small>· EP-6</small></h2>
+      <table>
+        <tr><td>Gemma 3 4B · BGE-M3</td><td class="n">3.4 GB · 1.2 GB</td></tr>
+        <tr><td>RAM for local models</td><td class="n">8 GB works · 16 GB ideal</td></tr>
+        <tr><td>Search cache (Redis)</td><td class="n">60 s</td></tr>
+        <tr><td>Kafka retries → DLQ</td><td class="n">3</td></tr>
+        <tr><td>Vector RAM <span class="gen">(general)</span></td><td class="n">products × 1,024 × 4 B</td></tr>
+        <tr><td>Seed through Kafka</td><td class="n">100 products in 7.4 s</td></tr>
+        <tr><td>Dashboard demo</td><td class="n">36 searches · 2.8% zero · 33.3% CTR</td></tr>
+        <tr><td>Latency P50 / P95</td><td class="n">≤300 / ≤1000 ms</td></tr>
+        <tr><td>V1 demo zones</td><td class="n">24 dark stores · ~120 pincodes</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Guardrails <small>· EP-6 · ▶ 22:34 · 29:11 · 30:42</small></h2>
+      <p style="margin:0"><b>AI only generates</b>; it never touches the DB. Missed searches: <b>no auto-add</b>; the AI suggests a match, the admin approves with one click (one wrong tag spoils every search). Bad words are checked at <b>5 places</b> (suggest, admin tags, Kafka worker, missed searches, trending); <b>fail closed</b> if Ollama is down; a veg product never gets a non-veg word.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this <small>· EP-6</small></h2>
+      <ul class="say">
+        <li>“I generate multilingual tags once, when the product is added, so the model is off the shopper’s path.”</li>
+        <li>“Tags catch exact words and typos; vectors catch meaning. Typesense ranks both together.”</li>
+        <li>“Saving a product returns 202; a Kafka worker tags, embeds and writes Mongo, Typesense and Redis.”</li>
+        <li>“Every search carries the dark store id, so results are only what that store can deliver.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags <small>· EP-6</small></h2>
+      <ul class="flags">
+        <li>A wildcard <code>LIKE</code> on the DB as “search”.</li>
+        <li>Calling the LLM on every keystroke or search.</li>
+        <li>Auto-adding zero-result queries as tags.</li>
+        <li>Letting the model write to the DB.</li>
+        <li>One India-wide index for a 10-minute delivery app.</li>
+        <li>Elasticsearch on day one “because everyone uses it”.</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public videos; revision notes, not official material. Page 2 of 2.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: the smallest spare space over all sheets; negative = content clipped off an A4 page */
+{if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.min(...[...document.querySelectorAll('.sheet')].map(s=>{const c=s.querySelector('.cols'),f=s.querySelector('footer');
+ return Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight))}));}</script>
 </body>
 </html>
