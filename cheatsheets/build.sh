@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PROFILE=$(mktemp -d)
 trap 'rm -rf "$PROFILE"' EXIT
-for f in "${@:-ep1 ep11 ep4 all}"; do for n in $f; do
+for f in "${@:-ep1 ep11 ep3 ep4 all}"; do for n in $f; do
   "$CHROME" --headless=new --disable-gpu --no-first-run --user-data-dir="$PROFILE" \
     --no-pdf-header-footer --print-to-pdf="$PWD/$n.pdf" "file://$PWD/$n.html" 2>/dev/null
   slack=$("$CHROME" --headless=new --disable-gpu --no-first-run --user-data-dir="$PROFILE" --window-size=1000,1400 --dump-dom "file://$PWD/$n.html" 2>/dev/null | sed -n 's/.*data-slack="\(-\{0,1\}[0-9]*\)".*/\1/p' | head -1)

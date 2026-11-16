@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EP-3 cheat sheet</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
+<div class="sheet">
+  <header>
+    <h1>EP-3 · Horizontal scaling: load balancers, Nginx, Wi‑Fi vs 1&nbsp;Gbps LAN<br><small style="font-size:9pt;font-weight:500">Last-hour cheat sheet</small></h1>
+    <p>Ankit Jain · System Design EP-3<br><a href="https://www.youtube.com/watch?v=pgLHXxW3Mg0">youtube.com/watch?v=pgLHXxW3Mg0</a><br>“(general)” = standard practice, not from the video</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>His lab: two MacBooks behind Nginx <small>· ▶ 6:23 · 21:05</small></h2>
+      <svg viewBox="0 0 360 104" role="img" aria-label="On Server A, k6 sends requests to Nginx on port 8080, which round-robins to Fastify on Server A at 127.0.0.1:5003 and to Server B on port 5003, first over Wi-Fi at 192.168.0.6, then over a 1 Gbps LAN at 192.168.1.27; each runs PM2 with 4 workers; MongoDB and Grafana with Prometheus and Node Exporter are on Server A">
+        <rect x="2" y="2" width="218" height="98" rx="4" fill="none" stroke="var(--a)" stroke-width=".8" stroke-dasharray="3 2"/><text x="6" y="10" class="s">💻 Server A: MacBook Pro M1, 16 GB (also the test machine)</text>
+        <rect class="bx" x="8" y="22" width="40" height="26" rx="3"/><text x="28" y="33" text-anchor="middle" class="b">k6</text><text x="28" y="43" text-anchor="middle" class="s">3000 VUs</text>
+        <rect class="hot" x="60" y="18" width="62" height="34" rx="3"/><text x="91" y="30" text-anchor="middle" class="b">Nginx :8080</text><text x="91" y="40" text-anchor="middle" class="s">round robin</text><text x="91" y="48" text-anchor="middle" class="s">upstream fastify</text>
+        <rect class="ok" x="136" y="18" width="78" height="30" rx="3"/><text x="175" y="30" text-anchor="middle" class="b">Fastify :5003</text><text x="175" y="40" text-anchor="middle" class="s">PM2 × 4 · 127.0.0.1</text>
+        <rect class="bx" x="8" y="70" width="70" height="26" rx="3"/><text x="43" y="81" text-anchor="middle" class="b">MongoDB</text><text x="43" y="91" text-anchor="middle" class="s">CPU 102% on LAN run</text>
+        <rect class="ok" x="88" y="70" width="126" height="26" rx="3"/><text x="151" y="81" text-anchor="middle" class="b">Prometheus + Grafana</text><text x="151" y="91" text-anchor="middle" class="s">Node Exporter: CPU, system load</text>
+        <path class="ln" d="M48,35 L59,35"/><path class="ln" d="M122,33 L135,33"/>
+        <rect class="ok" x="262" y="18" width="94" height="30" rx="3"/><text x="309" y="30" text-anchor="middle" class="b">Server B :5003</text><text x="309" y="40" text-anchor="middle" class="s">M3 Pro, 18 GB · PM2 × 4</text>
+        <path class="ln r d" d="M114,52 V57 H274 V49"/><text x="226" y="55" class="s">📶 Wi-Fi</text>
+        <path class="ln g" d="M100,52 V63 H296 V49"/><text x="226" y="70" class="s">🔌 1 Gbps LAN</text>
+        <text x="226" y="82" class="s">B: 192.168.0.6 on Wi-Fi, then</text><text x="226" y="90" class="s">192.168.1.27 on the LAN. Router used</text><text x="226" y="98" class="s">only as a switch, Wi-Fi off.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>The 5 steps, for this episode</h2>
+      <ol class="steps">
+        <li><b>Requirements</b> <span class="t">3 min</span> · More load than one machine; no single point of failure; know where the bottleneck is.</li>
+        <li><b>Estimates</b> <span class="t">4 min</span> · Baseline one server first. <span class="formula">req/s = requests ÷ seconds</span> <span class="formula">link cap ≈ speed ÷ reply size</span></li>
+        <li><b>HLD</b> <span class="t">8 min</span> · Users → Nginx LB → N app servers (PM2 × cores) → DB, on a wired switch; Prometheus + Grafana.</li>
+        <li><b>Deep dive</b> <span class="t">8 min</span> · Algorithms (round robin, least_conn, ip_hash…). Network between machines. Where k6 runs.</li>
+        <li><b>Trade-offs</b> <span class="t">5 min</span> · Reliability vs cost. Round robin vs least_conn. Wi-Fi vs cable. Sticky sessions vs even load <span class="gen">(general)</span>.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Same k6 test, 3 setups <small>· 3000 VUs, 1m50s</small></h2>
+      <svg viewBox="0 0 250 62" role="img" aria-label="Requests in 1 minute 50 seconds: one Mac alone 1,244,513; two Macs over 2.4 GHz Wi-Fi 62,368; two Macs over 1 Gbps LAN 1,016,029">
+        <text x="2" y="10" class="s">1 Mac alone</text><rect x="74" y="3" width="110" height="8" rx="1" fill="var(--a)"/><text x="188" y="10" class="b">1,244,513</text>
+        <text x="2" y="30" class="s">2 Macs, 2.4 GHz Wi-Fi</text><rect x="74" y="23" width="5.5" height="8" rx="1" fill="var(--bad)"/><text x="83" y="30" class="b">62,368 (~20× worse)</text>
+        <text x="2" y="50" class="s">2 Macs, 1 Gbps LAN</text><rect x="74" y="43" width="90" height="8" rx="1" fill="var(--b)"/><text x="168" y="50" class="b">1,016,029</text>
+      </svg>
+      <p style="margin:1mm 0 0">Wi-Fi: 1.9 MB/s received → the network was the bottleneck. LAN below 1 Mac: Server A also ran k6 (12–23% CPU), Nginx and MongoDB → CPU above 95%.</p>
+    </section>
+
+    <section>
+      <h2>Numbers to remember</h2>
+      <table>
+        <tr><td>Server A / Server B</td><td class="n">M1 16 GB · M3 Pro 18 GB</td></tr>
+        <tr><td>1 Mac alone</td><td class="n">1,244,513 · ~11,300/s</td></tr>
+        <tr><td>2 Macs over Wi-Fi</td><td class="n">62,368 · 567/s</td></tr>
+        <tr><td>2 Macs over 1 Gbps LAN</td><td class="n">1,016,029 · ~9,200/s</td></tr>
+        <tr><td>Data received (Wi-Fi / LAN)</td><td class="n">214 MB · 3.5 GB</td></tr>
+        <tr><td>Reply size</td><td class="n">~3.4 KB</td></tr>
+        <tr><td>Ports</td><td class="n">Nginx 8080 · Fastify 5003</td></tr>
+        <tr><td>Team in his story</td><td class="n">9 people · ₹7.5L/month</td></tr>
+        <tr><td>Data-centre links</td><td class="n">10 / 40 / 100 Gbps</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>6 ways Nginx picks a server <small>· ▶ 18:05</small></h2>
+      <table>
+        <tr><td><b>Round robin</b></td><td>default; in turn; ignores whether the last request finished</td></tr>
+        <tr><td><b>Weighted RR</b></td><td><code>weight=3</code>: bigger servers get more</td></tr>
+        <tr><td><b>least_conn</b></td><td>fewest active connections; uneven request times</td></tr>
+        <tr><td><b>ip_hash</b></td><td>same client → same server (sticky, region)</td></tr>
+        <tr><td><b>hash</b></td><td>same key/URL → same server (warm cache)</td></tr>
+        <tr><td><b>random two</b></td><td>pick 2, send to the less busy</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Load balancers <small>· ▶ 16:34</small></h2>
+      <p style="margin:0">Software: Nginx (free, safe choice), HAProxy, Traefik, Envoy (microservices), Caddy (auto SSL), LVS. Cloud: AWS ALB/NLB, GCP, Azure, Cloudflare. Hardware: F5 BIG-IP, Citrix.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this</h2>
+      <ul class="say">
+        <li>“One server is a single point of failure, so I run at least two behind a load balancer and keep each one lightly loaded.”</li>
+        <li>“Before scaling out, I load-test one server for a baseline, then rerun the same test after every change.”</li>
+        <li>“If throughput drops when I add servers, I check the network between them first: on Wi-Fi it fell 20×.”</li>
+        <li>“Round robin is fine for equal servers and short requests; with uneven requests I use least connections.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags: don’t say or do</h2>
+      <ul class="flags">
+        <li>Load-testing servers over Wi-Fi.</li>
+        <li>Running k6, Nginx and the DB on the server you’re measuring.</li>
+        <li>Blaming Nginx or the CPU without checking the network numbers.</li>
+        <li>Round robin with servers of very different speed.</li>
+        <li>“Just add machines”, with no word on cost and upkeep.</li>
+        <li>One big server with no backup (single point of failure).</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public video; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: flags content that would be clipped off the A4 page */
+{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
+ if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+</body>
+</html>

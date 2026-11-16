@@ -1,0 +1,92 @@
+// EP-3: horizontal scaling (Nginx load balancer, two MacBooks, Wi-Fi vs 1 Gbps LAN). Everything here comes from the video unless marked "(general)".
+export default {
+  id: 'ep3',
+  name: 'EP-3',
+  title: 'Horizontal scaling: load balancers, Nginx, Wi-Fi vs 1 Gbps LAN',
+  video: 'pgLHXxW3Mg0',
+
+  cards: [
+    ['Vertical vs horizontal scaling?', 'Vertical: make one machine bigger (EP-2 put app, DB, load tool and Nginx on one MacBook). Horizontal: add machines behind a load balancer (EP-3: two MacBooks behind Nginx).'],
+    ['Why don’t companies rely on one big machine?', 'It is a single point of failure: if it dies, everything stops. Spread the work so each machine stays light, and keep backups.'],
+    ['What does horizontal scaling cost?', 'More machines, more maintenance, more liability. Vertical scaling is often cheaper.'],
+    ['The office analogy for scaling?', 'One employee doing 12 jobs at 160% of capacity, no backup, vs the same work split over a team at a healthy load, each job with a backup.'],
+    ['Name load balancers of each kind.', 'Software: Nginx, HAProxy, Traefik, Envoy, Caddy, LVS. Cloud: AWS ALB/NLB, GCP, Azure, Cloudflare. Hardware: F5 BIG-IP, Citrix.'],
+    ['Nginx’s default algorithm, and its risk?', 'Round robin: 1, 2, 3, 1, 2, 3… It doesn’t care whether the last request finished, so a slow server still gets its turn. Use it when every server can handle the load.'],
+    ['Least connections?', 'The next request goes to the server with the fewest active connections. Good when requests take different times (uploads, slow APIs).'],
+    ['IP hash?', 'The same client IP always lands on the same server (sticky): sessions kept on one server, or routing by region.'],
+    ['Weighted round robin?', 'A bigger server gets a bigger share (server s1 weight=3). Use it when servers have different CPU or RAM.'],
+    ['Generic hash vs random (power of two)?', 'Generic hash: the same key (URL, user id) always goes to the same server, so its cache stays warm. Random two: pick 2 servers at random, send to the less busy one.'],
+    ['Baseline: one Mac alone, 3000 VUs for 1m50s?', '1,244,513 requests, about 11,300 per second.'],
+    ['Two Macs over 2.4 GHz Wi-Fi: result and cause?', 'Only 62,368 requests (~20× worse), with 1.9 MB/s received. The Wi-Fi network was the bottleneck, not Nginx or the computers.'],
+    ['Two Macs over a 1 Gbps LAN?', '1,016,029 requests (~9,200 per second), about 16× the Wi-Fi run.'],
+    ['Why was the LAN run below one Mac alone?', 'Server A also ran k6, Nginx and MongoDB: its CPU went above 95%. Next step: k6, Nginx, app servers and DB on separate machines.'],
+    ['How did he build the LAN?', 'A Wi-Fi router used only as a switch (no internet), Ethernet cables at 1 Gbps, Wi-Fi off, and the new IP in the Nginx upstream.'],
+    ['What do data centres use instead of Wi-Fi?', 'Cat6/Cat7 LAN cable and optical fibre at 10, 40 or 100 Gbps, all through wired switches.'],
+    ['EP-3’s monitoring stack?', 'Node Exporter reads the machine’s numbers → Prometheus stores them → Grafana draws the dashboard (CPU, load, RAM).'],
+    ['How did he set up the AI before starting?', 'Response-style rules: no over-explaining, point to point, simple words, no long paragraphs, spacing between lines. Then he told it the context: EP-2 was vertical, EP-3 is horizontal.'],
+  ].map(([q, a]) => ({ q, a })),
+
+  // Hindi audio; each clip starts and ends on a sentence break.
+  clips: [
+    { start: 676, end: 706, title: 'Why scale out at all?', why: 'You can’t put all the load on one machine: if the only person in the shop falls sick, the shop closes.' },
+    { start: 737, end: 768, title: 'One person at 160%', why: 'Every task on one person: the work gets done until that person breaks.' },
+    { start: 798, end: 828, title: 'Lighter load, with backups', why: 'Scaling out didn’t raise throughput here; it made each person lighter and gave everyone a backup.' },
+    { start: 858, end: 888, title: 'Single point of failure', why: 'If that one person leaves, the whole system drops. So always distribute the work.' },
+    { start: 1085, end: 1115, title: 'Round robin, by default', why: 'First, second, third, repeat. It doesn’t care whether the last request finished.' },
+    { start: 1115, end: 1145, title: 'Least connections, IP hash', why: 'Send to the least busy server, or pin a client to one server by IP.' },
+    { start: 1514, end: 1546, title: 'Wi-Fi: only 62,368', why: 'After load balancing the result got about 20× worse.' },
+    { start: 1546, end: 1576, title: 'The network is the problem', why: '1.9 MB/s over 2.4 GHz Wi-Fi: the data can’t move, so everything waits.' },
+    { start: 1667, end: 1697, title: 'Wi-Fi off, 1 Gbps on', why: 'The same two laptops, now on cables through a switch.' },
+    { start: 1941, end: 1972, title: 'LAN: 10 lakh+ requests', why: '1,016,029 requests; the rest depends on Server A’s busy CPU.' },
+    { start: 2127, end: 2158, title: 'What data centres use', why: 'The network was the bottleneck. Data centres use Cat6/Cat7 and fibre, never Wi-Fi.' },
+  ],
+
+  puzzle: {
+    title: 'One k6 request through the two-MacBook setup',
+    steps: [
+      'A k6 virtual user on Server A sends GET /fastify/products',
+      'The request reaches Nginx on port 8080',
+      'Nginx’s upstream picks the next server in turn (round robin)',
+      'The request crosses the network to that server’s port 5003',
+      'A PM2 worker on that server runs the Fastify route',
+      'The route reads the products from MongoDB and builds a JSON reply',
+      'The reply travels back through Nginx to k6, which counts one request',
+    ],
+    missing: {
+      q: 'Over Wi-Fi the same test fell from 1,244,513 to 62,368 requests. Which part was the bottleneck?',
+      options: ['Nginx’s round robin', 'The 2.4 GHz Wi-Fi network', 'Server B’s CPU'],
+      answer: 'The 2.4 GHz Wi-Fi network',
+      why: 'Only 1.9 MB/s came back. On a 1 Gbps LAN the same setup served 1,016,029 requests.',
+    },
+  },
+
+  followups: [
+    { id: 'wifi', t: 1514, q: 'You add a second server behind Nginx and throughput drops about 20×. What do you check?',
+      points: ['Compare with the baseline: one server alone did 1,244,513, two did 62,368', 'Read the network numbers: only 1.9 MB/s received', 'The link between the machines (2.4 GHz Wi-Fi) is the bottleneck, not Nginx or the CPUs', 'Move to a wired 1 Gbps LAN: 1,016,029'] },
+    { id: 'whyout', t: 676, q: 'Your single server handles today’s load. Why scale out anyway?',
+      points: ['One server is a single point of failure: it dies, everything stops', 'Each machine stays lighter, so spikes don’t break it', 'Every machine has a backup that can take its work', 'Trade-off: more machines cost more to run and maintain'] },
+    { id: 'rr', t: 1085, q: 'Nginx uses round robin, but one of your servers is much slower. What goes wrong, and what do you use?',
+      points: ['Round robin doesn’t check whether the last request finished', 'The slow server still gets every Nth request, so requests pile up', 'least_conn sends to the server with the fewest active connections', 'Weighted round robin gives bigger servers a bigger share'] },
+    { id: 'sticky', t: 1115, q: 'Users get logged out when their next request lands on another server. Fix it.',
+      points: ['The session lives in one server’s memory', 'ip_hash keeps a client on the same server', 'Trade-off: load can be uneven, and a dead server loses its sessions (general)', 'Better: keep sessions in a shared store such as Redis (general)'] },
+    { id: 'lbpick', t: 994, q: 'Which load balancer would you pick for a small startup, and which for a company with its own data centre?',
+      points: ['Software: Nginx is free and the safe choice; HAProxy is very fast; Envoy suits microservices', 'Cloud: AWS ALB/NLB, GCP, Azure, Cloudflare (paid, managed)', 'Hardware: F5 BIG-IP or Citrix in physical data centres (expensive)', 'Start simple with Nginx'] },
+    { id: 'shared', t: 1941, q: 'During your LAN test the server’s CPU goes above 95%, and k6 runs on the same machine. Can you trust the result?',
+      points: ['k6 itself used 12–23% of the CPU', 'Nginx and MongoDB (102% CPU) also ran on Server A', '1,016,029 is below the 1,244,513 of one Mac alone', 'Put k6, Nginx, app servers and DB on separate machines'] },
+    { id: 'dc', t: 2127, q: 'How are servers connected inside a data centre, and why not Wi-Fi?',
+      points: ['Wired Cat6/Cat7 cables and optical fibre', '10, 40 or 100 Gbps through switches', 'Wi-Fi is too slow for server traffic', 'Even a home 1 Gbps LAN beat 2.4 GHz Wi-Fi about 16×'] },
+    { id: 'cost', t: 828, q: 'If horizontal scaling is so good, why doesn’t everyone just add machines?',
+      points: ['Every machine costs money: the team in his story costs ₹7.5L a month', 'More maintenance and more liability', 'Vertical scaling is often cheaper', 'You also need the right hardware, network and connectivity'] },
+  ],
+
+  problems: [
+    { id: 'hscale', title: 'Scale an API from one server to two behind a load balancer', img: '../img/ep3-hscale.png', t: 383,
+      checklist: [
+        ['baseline', 'Load-test one server alone first (the baseline)'], ['lb', 'Nginx in front with an upstream of 2+ servers'],
+        ['algo', 'An algorithm chosen on purpose (round robin, least_conn, ip_hash…)'], ['wired', 'A wired network between machines (LAN or fibre, not Wi-Fi)'],
+        ['spof', 'No single point of failure: 2+ app servers'], ['pm2', 'PM2 workers on every server'],
+        ['separate', 'k6, Nginx, app servers and DB on separate machines'], ['monitor', 'Node Exporter + Prometheus + Grafana'],
+        ['same', 'The same test for every run (3000 VUs, 1m50s), then compare'],
+      ].map(([id, label]) => ({ id, label })) },
+  ],
+};

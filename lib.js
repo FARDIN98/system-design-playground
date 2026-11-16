@@ -131,8 +131,21 @@ export const DRILLS = {
       unit: 'MB', answer: mb * 0.3,
       working: `70% smaller leaves 30%: ${fmtNum(mb)} × 0.3 ≈ <b>${fmtNum(mb * 0.3)} MB</b>. The price is CPU: EP-1.1 served 133,702 requests through Nginx + gzip vs ~1.5 lakh without it.` };
   },
+  link(rnd) {
+    const [what, mbps] = pick([['2.4 GHz Wi-Fi (EP-3 measured ~1.9 MB/s)', 1.9], ['a 1 Gbps LAN (~125 MB/s)', 125], ['a 10 Gbps data-centre link (~1,250 MB/s)', 1250]], rnd);
+    const kb = pick([1, 3.4, 10], rnd);
+    return { kind: 'link', q: `Servers talk over <b>${what}</b>. Each reply is about <b>${kb} KB</b>. At most how many <b>replies per second</b> fit through the link?`,
+      unit: 'replies/s', answer: (mbps * 1000) / kb,
+      working: `${mbps} MB/s = ${fmtNum(mbps * 1000)} KB/s ÷ ${kb} KB ≈ <b>${fmtNum((mbps * 1000) / kb)}</b>/s. EP-3’s replies were ~3.4 KB: Wi-Fi capped the test at ~570/s, the 1 Gbps LAN didn’t.` };
+  },
+  rate(rnd) {
+    const [label, n] = pick([['one Mac alone', 1244513], ['two Macs over Wi-Fi', 62368], ['two Macs over a 1 Gbps LAN', 1016029]], rnd);
+    return { kind: 'rate', q: `EP-3’s k6 run (3000 VUs, <b>1m50s</b>) on ${label} counted <b>${fmtNum(n)} requests</b>. About how many <b>requests per second</b>?`,
+      unit: 'req/s', answer: n / 110,
+      working: `1m50s = 110 s. ${fmtNum(n)} ÷ 110 ≈ <b>${fmtNum(n / 110)}</b> req/s.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;

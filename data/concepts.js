@@ -12,20 +12,20 @@ export const CONCEPTS = [
   { id: 'cap', label: 'CAP theorem', t: { ep1: 1660 }, def: 'With data on many nodes, during a network split you choose consistency or availability.' },
   { id: 'partition', label: 'Partition', t: { ep1: 1752 }, def: 'A network split between DB nodes. The P in CAP is keeping working through it.' },
   { id: 'replication', label: 'Replication', t: { ep1: 1752 }, def: 'Copies of the same data on several nodes. More read capacity, and a backup.' },
-  { id: 'vertical', label: 'Vertical scaling', t: { ep1: 1814 }, def: 'Make one machine bigger: more RAM, CPU, storage. Still one machine.' },
-  { id: 'horizontal', label: 'Horizontal scaling', t: { ep1: 1814 }, def: 'Add more machines behind a load balancer. One dies, the rest serve.' },
-  { id: 'spof', label: 'Single point of failure', t: { ep1: 1814 }, def: 'One part whose failure stops everything, like one big server.' },
+  { id: 'vertical', label: 'Vertical scaling', t: { ep1: 1814, ep3: 134 }, def: 'Make one machine bigger: more RAM, CPU, storage. Still one machine. EP-2 ran everything on one MacBook.' },
+  { id: 'horizontal', label: 'Horizontal scaling', t: { ep1: 1814, ep3: 676 }, def: 'Add more machines behind a load balancer. One dies, the rest serve. Costs more machines and upkeep.' },
+  { id: 'spof', label: 'Single point of failure', t: { ep1: 1814, ep3: 858 }, def: 'One part whose failure stops everything, like one big server.' },
   { id: 'signature', label: 'File signature', t: { ep1: 2180 }, def: 'The first bytes of a file, which show its real type. Check this, not the extension.' },
   { id: 'backup', label: 'Backup', t: { ep1: 2210 }, def: 'A copy of the DB and static files to recover from loss, even if you replicate.' },
   { id: 'archival', label: 'Archival', t: { ep1: 2240 }, def: 'Move old data out of the main DB but keep it (UPI ~6 months, IRCTC old tickets).' },
   // in 2+ episodes
   { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
-  { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
+  { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970, ep3: 994 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
   { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-4: the filter is checked even before Redis.' },
   { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
-  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862 }, def: 'Send many users and requests to find the threshold. EP-4 and EP-1.1 used Grafana k6.' },
+  { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862, ep3: 1422 }, def: 'Send many users and requests to find the threshold. EP-4, EP-1.1 and EP-3 used Grafana k6.' },
   // EP-4
   { id: 'exists', label: '“Does it exist?” check', t: { ep4: 0 }, def: 'Validate a value (username, UPI ID, blocked IP) without fetching it or hitting the DB.' },
   { id: 'fp', label: 'False positive', t: { ep4: 1726 }, def: 'The filter says “maybe” for something that isn’t there. Confirm a “maybe” in the DB.' },
@@ -52,7 +52,15 @@ export const CONCEPTS = [
   { id: 'revproxy', label: 'Reverse proxy', t: { ep11: 5274 }, def: 'Nginx in front: clients hit :8080, Nginx forwards to the app on :3000, which stays hidden.' },
   { id: 'workerconn', label: 'worker_connections', t: { ep11: 5642 }, def: 'Nginx’s connection limit, 512 by default. Raise it before a big load test (he used 8192).' },
   { id: 'gzip', label: 'gzip', t: { ep11: 5672 }, def: 'Compresses replies (up to ~70% smaller) at the cost of CPU.' },
-  { id: 'monitoring', label: 'Prometheus + Grafana', t: { ep11: 5734 }, def: 'Prometheus stores the numbers over time; Grafana draws dashboards from them.' },
+  { id: 'monitoring', label: 'Prometheus + Grafana', t: { ep11: 5734, ep3: 488 }, def: 'Prometheus stores the numbers over time; Grafana draws dashboards from them.' },
+  // EP-3
+  { id: 'lbtypes', label: 'Software / cloud / hardware LB', t: { ep3: 994 }, def: 'Software: Nginx, HAProxy, Traefik, Envoy, Caddy, LVS. Cloud: AWS ALB/NLB, GCP, Azure, Cloudflare. Hardware: F5 BIG-IP, Citrix.' },
+  { id: 'roundrobin', label: 'Round robin', t: { ep3: 1085 }, def: 'Nginx’s default: each server in turn. It doesn’t check whether the last request finished.' },
+  { id: 'leastconn', label: 'Least connections', t: { ep3: 1115 }, def: 'Send to the server with the fewest active connections. Good when requests take different times.' },
+  { id: 'iphash', label: 'IP hash (sticky)', t: { ep3: 1115 }, def: 'The same client IP always goes to the same server: sessions on one server, or routing by region.' },
+  { id: 'netbottle', label: 'Network bottleneck', t: { ep3: 1546 }, def: 'The link between machines caps throughput: 2.4 GHz Wi-Fi gave 62,368 requests, a 1 Gbps LAN 1,016,029.' },
+  { id: 'wired', label: 'Wired LAN / fibre', t: { ep3: 1636 }, def: 'Cables through a switch (1 Gbps at home). Data centres use Cat6/Cat7 and fibre at 10–100 Gbps, never Wi-Fi.' },
+  { id: 'separate', label: 'Separate test, proxy, app, DB', t: { ep3: 1881 }, def: 'k6, Nginx and MongoDB on the app server stole its CPU (>95%). Give each its own machine.' },
 ];
 
 export const LINKS = [
@@ -67,4 +75,6 @@ export const LINKS = [
   ['cuckoo', 'fingerprint'], ['cuckoo', 'mmap'], ['fuse', 'rebuild'], ['mmap', 'rebuild'],
   ['guardrails', 'hooks'], ['lld', 'featurebased'], ['featurebased', 'layers'], ['lld', 'layers'], ['docker', 'seed'],
   ['loadtest', 'vu'], ['vu', 'pm2'], ['pm2', 'lb'], ['lb', 'revproxy'], ['revproxy', 'workerconn'], ['revproxy', 'gzip'], ['loadtest', 'monitoring'],
+  ['lb', 'lbtypes'], ['lb', 'roundrobin'], ['roundrobin', 'leastconn'], ['roundrobin', 'iphash'], ['horizontal', 'netbottle'],
+  ['loadtest', 'netbottle'], ['netbottle', 'wired'], ['loadtest', 'separate'], ['monitoring', 'separate'],
 ];

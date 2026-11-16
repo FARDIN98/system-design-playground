@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Lab Playground</title>
+<meta name="description" content="Put one or two servers behind Nginx, switch Wi-Fi for a 1 Gbps LAN, and see where the bottleneck moves; then pick the right load-balancing algorithm and decide when to scale up or out.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.ctl { display: grid; gap: 8px; margin-bottom: 12px; }
+.ctl .seg { margin: 0; align-items: center; }
+.seg .lbl { min-width: 150px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.stat small { display: block; color: var(--muted); font-size: 12.5px; }
+.stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.runs { list-style: none; padding: 0; margin: 0 0 8px; }
+.runs li { display: grid; grid-template-columns: 190px 1fr 84px; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 8px; }
+.runs li.match { background: var(--a-soft); }
+.runs button { all: unset; cursor: pointer; font-size: 13.5px; }
+.runs button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.runs .val { text-align: right; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.track { height: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 4px 4px 0; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--muted); border-radius: 0 4px 4px 0; transition: width .25s; }
+.runs li.you .track i { background: var(--a); }
+.runs li.you { font-weight: 600; }
+@media (max-width: 520px) { .runs li { grid-template-columns: 1fr 74px; } .runs .track { grid-column: 1 / -1; grid-row: 2; } .seg .lbl { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Network lab</h1>
+  <p class="sub">EP-3: the same k6 test (3000 virtual users, 1m50s) on one Mac, then two Macs behind Nginx over Wi-Fi and over a 1 Gbps LAN.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-lab" aria-controls="lab" aria-selected="true">🌐 Network lab</button>
+    <button class="tab" role="tab" id="tab-algo" aria-controls="algo" aria-selected="false">⚖️ Pick the algorithm</button>
+    <button class="tab" role="tab" id="tab-upout" aria-controls="upout" aria-selected="false">📈 Up or out?</button>
+  </div>
+
+  <section id="lab" role="tabpanel" aria-labelledby="tab-lab">
+    <div class="ctl">
+      <div class="seg" role="group" aria-label="Servers behind Nginx"><span class="lbl">Servers behind Nginx:</span>
+        <button type="button" data-k="servers" data-v="1">1 (Server A)</button><button type="button" data-k="servers" data-v="2">2 (A + B)</button><button type="button" data-k="servers" data-v="4">4</button></div>
+      <div class="seg" role="group" aria-label="Network between the machines" id="l-link"><span class="lbl">Network between them:</span>
+        <button type="button" data-k="link" data-v="wifi">2.4 GHz Wi-Fi</button><button type="button" data-k="link" data-v="lan">1 Gbps LAN</button><button type="button" data-k="link" data-v="fibre">10 Gbps fibre</button></div>
+      <div class="seg" role="group" aria-label="Where k6, Nginx and MongoDB run"><span class="lbl">k6, Nginx, MongoDB:</span>
+        <button type="button" data-k="split" data-v="0">on Server A (as in the video)</button><button type="button" data-k="split" data-v="1">on their own machines</button></div>
+    </div>
+
+    <div class="banner" id="l-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Requests in 1m50s</small><b id="l-req"></b></div>
+      <div class="stat"><small>Requests per second</small><b id="l-rps"></b></div>
+      <div class="stat"><small>Data received</small><b id="l-mb"></b></div>
+      <div class="stat"><small>Source</small><b id="l-src"></b></div>
+    </div>
+
+    <h2 style="font-size:14px;margin:4px 0 6px">Your run vs the video’s runs <span class="meta" style="font-weight:400">(click a run to load it)</span></h2>
+    <ul class="runs" id="l-runs"></ul>
+    <p class="note">A rough model calibrated to the three runs in the video. Each reply is about 3.4 KB. Round robin gives every server the same share, so the slowest path sets the pace. Wi-Fi is one shared channel; cables give each server its own link. Runs not in the video are estimates (4 servers, fibre, separate machines).</p>
+  </section>
+
+  <section id="algo" role="tabpanel" aria-labelledby="tab-algo" hidden></section>
+  <section id="upout" role="tabpanel" aria-labelledby="tab-upout" hidden></section>
+
+  <p class="try">Try: <b>Network lab</b> → load “1 Mac alone”, add Server B over Wi-Fi (it gets ~20× worse), switch to the 1 Gbps LAN, then move k6, Nginx and MongoDB to their own machines. Try 4 servers on Wi-Fi. <b>Pick the algorithm</b> → 12 situations. <b>Up or out?</b> → 10 decisions.
+  From EP-3 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=pgLHXxW3Mg0" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+import { fmtNum, fmtBytes } from '../lib.js';
+import { mount, CSS } from '../challenge.js';
+import { ALGO, UPOUT } from './scenarios.js';
+
+const $ = id => document.getElementById(id);
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+
+const st = { ...S.RUNS.find(r => r.id === 'one').cfg };
+const MAX = Math.max(...S.RUNS.map(r => r.requests));
+const MSG = {
+  one: () => ['warn', '🟠 <b>One Mac does everything:</b> k6, Nginx, the app and MongoDB. About 11,300 requests per second, and a single point of failure. Add a server.'],
+  link: r => ['bad', `🔴 <b>The network is the bottleneck</b>, not Nginx or the computers. Only ~${fmtNum(r.path)} replies/s fit through ${S.LINKS[st.link].label} to each remote server, and round robin makes every server wait at that pace.${st.link === 'wifi' && st.servers > 2 ? ' More servers share the same air, so it gets worse.' : ''}`],
+  shared: () => ['warn', '🟠 <b>Server A’s CPU is the ceiling.</b> It also runs k6, Nginx and MongoDB (above 95% CPU in the video). Put them on their own machines.'],
+  cpu: () => ['good', `✅ <b>Every server’s CPU is the limit now</b>: ${st.servers} × ~11,300 req/s. To go further, add servers.`],
+};
+
+function draw() {
+  document.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', String(st[b.dataset.k] === true ? 1 : st[b.dataset.k] === false ? 0 : st[b.dataset.k]) === b.dataset.v));
+  $('l-link').hidden = st.servers === 1;
+  const r = S.run(st), [kind, html] = MSG[r.limit](r);
+  const msg = $('l-msg'); msg.className = `banner ${kind}`; msg.innerHTML = html;
+  $('l-req').textContent = fmtNum(r.requests);
+  $('l-rps').textContent = fmtNum(r.perSec);
+  $('l-mb').textContent = fmtBytes(r.bytes);
+  $('l-src').textContent = r.measured ? 'the video' : 'estimate';
+  const bar = (n, cls, label, id) => `<li class="${cls}"><span>${id ? `<button type="button" data-run="${id}">${label}</button>` : label}</span>
+    <div class="track" aria-hidden="true"><i style="width:${Math.min(100, (n / MAX) * 100)}%"></i></div><span class="val">${fmtNum(n)}</span></li>`;
+  $('l-runs').innerHTML = bar(r.requests, 'you', 'Your run') +
+    S.RUNS.map(v => bar(v.requests, S.sameCfg(v.cfg, st) ? 'match' : '', v.label, v.id)).join('');
+}
+document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.k; st[k] = k === 'servers' ? +b.dataset.v : k === 'split' ? b.dataset.v === '1' : b.dataset.v; draw();
+}));
+$('l-runs').addEventListener('click', e => { const b = e.target.closest('[data-run]'); if (b) { Object.assign(st, S.RUNS.find(r => r.id === b.dataset.run).cfg); draw(); } });
+draw();
+
+const style = document.createElement('style'); style.textContent = CSS; document.head.append(style);
+mount($('algo'), ALGO);
+mount($('upout'), UPOUT);
+</script>
+</body>
+</html>
