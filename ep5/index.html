@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Count Lab Playground</title>
+<meta name="description" content="Count unique views with a real HyperLogLog against an exact set, see how Kafka batch sizes cut DB writes, and break a like counter with duplicate and repeated unlike events; then pick the right tool and make the design calls.">
+<link rel="stylesheet" href="../shared.css">
+<style>
+.ctl { display: grid; gap: 8px; margin-bottom: 12px; }
+.ctl .seg { margin: 0; align-items: center; }
+.seg .lbl { min-width: 140px; }
+.ctl label.range { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 14px; }
+.ctl input[type=range] { flex: 1; min-width: 180px; accent-color: var(--a); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.stat small { display: block; color: var(--muted); font-size: 12.5px; }
+.stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat.bad { border-color: var(--bad); background: var(--bad-bg); }
+h2.part { font-size: 15px; margin: 18px 0 8px; }
+.acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.log { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+.log li { padding: 4px 8px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.log li b { font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) { .seg .lbl { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Count lab</h1>
+  <p class="sub">EP-5: how Instagram-scale apps count likes and views. A real HyperLogLog, the consumer’s batches and the like/unlike guard.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-lab" aria-controls="lab" aria-selected="true">🧮 Count lab</button>
+    <button class="tab" role="tab" id="tab-guard" aria-controls="guard" aria-selected="false">💔 Like / unlike</button>
+    <button class="tab" role="tab" id="tab-tool" aria-controls="tool" aria-selected="false">🧰 Which tool?</button>
+    <button class="tab" role="tab" id="tab-calls" aria-controls="calls" aria-selected="false">🧭 Design calls</button>
+  </div>
+
+  <section id="lab" role="tabpanel" aria-labelledby="tab-lab">
+    <h2 class="part" style="margin-top:0">1 · Unique views: HyperLogLog vs an exact set</h2>
+    <div class="ctl">
+      <label class="range">Total views: <b id="v-total-out"></b><input type="range" id="v-total" min="0" max="6" step="1" aria-label="Total views"></label>
+      <label class="range">Different viewers: <b id="v-uniq-out"></b><input type="range" id="v-uniq" min="1" max="100" step="1" aria-label="Different viewers, percent of views"></label>
+      <div class="seg" role="group" aria-label="Presets"><span class="lbl">From the video:</span>
+        <button type="button" data-preset="boost">His boosted post (3M views)</button><button type="button" data-preset="reopen">One user reopening a post</button></div>
+    </div>
+    <div class="banner" id="v-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Total views (counter)</small><b id="v-count"></b></div>
+      <div class="stat"><small>Unique, exact (set)</small><b id="v-exact"></b></div>
+      <div class="stat"><small>Unique, HyperLogLog</small><b id="v-hll"></b></div>
+      <div class="stat"><small>HLL error</small><b id="v-err"></b></div>
+      <div class="stat"><small>Exact set memory (8 B per id, general)</small><b id="v-setmem"></b></div>
+      <div class="stat"><small>HyperLogLog memory</small><b id="v-hllmem"></b></div>
+    </div>
+
+    <h2 class="part">2 · Kafka batches: how many writes?</h2>
+    <div class="ctl">
+      <div class="seg" role="group" aria-label="Likes to write"><span class="lbl">Likes arriving:</span>
+        <button type="button" data-b="events" data-v="1000">1K</button><button type="button" data-b="events" data-v="100000">1 lakh</button><button type="button" data-b="events" data-v="1000000">10 lakh (1M)</button></div>
+      <div class="seg" role="group" aria-label="Batch size"><span class="lbl">Batch size:</span>
+        <button type="button" data-b="batch" data-v="1">1 (no queue)</button><button type="button" data-b="batch" data-v="500">500</button><button type="button" data-b="batch" data-v="5000">5K</button><button type="button" data-b="batch" data-v="50000">50K (his consumer)</button></div>
+    </div>
+    <div class="banner" id="b-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Mongo writes (insertMany)</small><b id="b-db"></b></div>
+      <div class="stat"><small>Redis counter Lua calls (5K each)</small><b id="b-lua"></b></div>
+      <div class="stat"><small>Cuckoo Lua calls (2K each)</small><b id="b-ck"></b></div>
+    </div>
+    <p class="note">The HyperLogLog here is real: 16,384 six-bit registers (12 KB), the same size Redis uses; its typical error is about 0.81% (general). The exact set’s 8 bytes per id is a floor; real sets use more. Batch rules from the video: up to 50K events per batch, counters in Lua calls of 5K, Cuckoo adds in calls of 2K.</p>
+  </section>
+
+  <section id="guard" role="tabpanel" aria-labelledby="tab-guard" hidden>
+    <p class="meta" style="margin-top:0">One post. Send like and unlike events as Kafka would deliver them, including duplicates. Mongo has a unique index on postId + userId.</p>
+    <div class="seg" role="group" aria-label="User"><span class="lbl">User:</span>
+      <button type="button" data-user="U1">U1</button><button type="button" data-user="U2">U2</button><button type="button" data-user="U3">U3</button></div>
+    <div class="acts">
+      <button type="button" class="act primary" data-ev="like">❤️ Like</button>
+      <button type="button" class="act" data-ev="unlike">💔 Unlike</button>
+      <button type="button" class="act" data-ev="again" id="g-again">🔁 Kafka delivers the last event again</button>
+      <button type="button" class="act" data-ev="reset">Reset</button>
+    </div>
+    <div class="banner" id="g-msg" role="status" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><small>Mongo like rows</small><b id="g-rows"></b></div>
+      <div class="stat"><small>Redis likes, with the guard</small><b id="g-guard"></b></div>
+      <div class="stat" id="g-naive-box"><small>Naive counter (+1 / −1 per event)</small><b id="g-naive"></b></div>
+    </div>
+    <ol class="log" id="g-log" reversed></ol>
+  </section>
+
+  <section id="tool" role="tabpanel" aria-labelledby="tab-tool" hidden></section>
+  <section id="calls" role="tabpanel" aria-labelledby="tab-calls" hidden></section>
+
+  <p class="try">Try: <b>Count lab</b> → load “His boosted post”, then “One user reopening a post”; drag the viewers slider and watch the set’s memory grow while HLL stays 12 KB. Switch the batch size from 1 to 50K. <b>Like / unlike</b> → like, deliver it again, unlike twice: the naive counter goes negative. <b>Which tool?</b> → 7 needs. <b>Design calls</b> → 7 decisions.
+  From EP-5 of Ankit Jain’s System Design series · <a href="https://www.youtube.com/watch?v=Oaf83IA_meM" target="_blank" rel="noopener">watch the video</a></p>
+</main>
+
+<script type="module">
+import * as S from './sim.js';
+import { fmtNum, fmtBytes } from '../lib.js';
+import { mount, CSS } from '../challenge.js';
+import { TOOL, CALLS } from './scenarios.js';
+
+const $ = id => document.getElementById(id);
+const tabs = [...document.querySelectorAll('.tab')];
+tabs.forEach(t => t.addEventListener('click', () => tabs.forEach(o => {
+  const on = o === t; o.setAttribute('aria-selected', on); $(o.getAttribute('aria-controls')).hidden = !on;
+})));
+const short = n => n >= 1e6 ? `${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}K` : fmtNum(n);
+
+// ---------- 1 · unique views ----------
+const TOTALS = [10, 100, 1000, 10000, 100000, 1000000, 3000000];
+const v = { t: 6, pct: 27 };
+const uniqueOf = () => Math.max(1, Math.round(TOTALS[v.t] * v.pct / 100));
+function drawViews(unique = uniqueOf()) {
+  const total = TOTALS[v.t], r = S.views({ total, unique });
+  $('v-total').value = v.t; $('v-uniq').value = v.pct;
+  $('v-total-out').textContent = fmtNum(total); $('v-uniq-out').textContent = fmtNum(unique);
+  $('v-count').textContent = short(r.total);
+  $('v-exact').textContent = short(r.exact);
+  $('v-hll').textContent = short(Math.round(r.est));
+  $('v-err').textContent = `${r.err >= 0 ? '+' : ''}${(r.err * 100).toFixed(2)}%`;
+  $('v-setmem').textContent = fmtBytes(r.setBytes);
+  $('v-hllmem').textContent = fmtBytes(r.hllBytes);
+  const m = $('v-msg');
+  if (unique === 1) { m.className = 'banner good'; m.innerHTML = `✅ <b>${fmtNum(total)} views, 1 unique.</b> In the demo, reopening the same post raised total views while unique stayed 1, even after a restart.`; }
+  else if (r.setBytes > r.hllBytes) { m.className = 'banner good'; m.innerHTML = `✅ <b>HyperLogLog is ${fmtNum(r.setBytes / r.hllBytes)}× smaller</b> than the ids alone, and off by ${Math.abs(r.err * 100).toFixed(2)}%. Fine for a view count; it can’t remove a viewer or tell you whether one user is in it.`; }
+  else { m.className = 'banner warn'; m.innerHTML = '🟠 <b>At this size an exact set is smaller.</b> HyperLogLog pays off once a post has thousands of viewers.'; }
+}
+// labels follow the drag; the count (up to 3M hashes) runs when the slider is released
+$('v-total').addEventListener('input', e => { v.t = +e.target.value; $('v-total-out').textContent = fmtNum(TOTALS[v.t]); $('v-uniq-out').textContent = fmtNum(uniqueOf()); });
+$('v-uniq').addEventListener('input', e => { v.pct = +e.target.value; $('v-uniq-out').textContent = fmtNum(uniqueOf()); });
+['v-total', 'v-uniq'].forEach(id => $(id).addEventListener('change', () => drawViews()));
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.preset === 'boost') { v.t = 6; v.pct = 27; drawViews(805100); } else { v.t = 0; v.pct = 1; drawViews(1); }
+}));
+
+// ---------- 2 · batching ----------
+const bt = { events: 1000000, batch: 50000 };
+function drawBatch() {
+  document.querySelectorAll('[data-b]').forEach(b => b.setAttribute('aria-pressed', String(bt[b.dataset.b]) === b.dataset.v));
+  const r = S.batching(bt);
+  $('b-db').textContent = fmtNum(r.batches); $('b-lua').textContent = fmtNum(r.lua); $('b-ck').textContent = fmtNum(r.cuckoo);
+  const m = $('b-msg');
+  if (bt.batch === 1) { m.className = 'banner bad'; m.innerHTML = `🔴 <b>${fmtNum(bt.events)} separate DB writes.</b> Every tap waits for a write, and a viral post chokes the DB. Fine at 500–600 likes, not at a million.`; }
+  else { m.className = 'banner good'; m.innerHTML = `✅ <b>${fmtNum(bt.events)} likes → ${fmtNum(r.batches)} insertMany call${r.batches > 1 ? 's' : ''}.</b> The API already replied 202; Kafka holds the events until the consumer takes a batch.`; }
+}
+document.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => { bt[b.dataset.b] = +b.dataset.v; drawBatch(); }));
+
+// ---------- like / unlike ----------
+let g = S.freshLikes(), user = 'U1', last = null;
+function drawGuard() {
+  document.querySelectorAll('[data-user]').forEach(b => b.setAttribute('aria-pressed', b.dataset.user === user));
+  $('g-again').disabled = !last;
+  $('g-rows').textContent = g.rows.size; $('g-guard').textContent = g.guarded; $('g-naive').textContent = g.naive;
+  const off = g.naive !== g.guarded;
+  $('g-naive-box').classList.toggle('bad', off);
+  const m = $('g-msg');
+  if (!g.log.length) { m.className = 'banner'; m.textContent = 'Pick a user and send a like.'; }
+  else if (off) { m.className = 'banner bad'; m.innerHTML = `🔴 <b>The naive counter says ${g.naive}, but ${g.rows.size} like${g.rows.size === 1 ? '' : 's'} exist.</b> Change the counter only when Mongo really changed: +1 for a row inserted, −1 only when deletedCount is 1.`; }
+  else { m.className = 'banner good'; m.innerHTML = '✅ <b>Both counters agree with Mongo.</b> Now send a duplicate event, or unlike twice.'; }
+  $('g-log').innerHTML = g.log.map(l => `<li><span>${l.type === 'like' ? '❤️' : '💔'} ${l.user} ${l.type}: ${l.note}</span><b>${l.changed > 0 ? '+1' : l.changed < 0 ? '−1' : '+0'}</b></li>`).reverse().join('');
+}
+document.querySelectorAll('[data-user]').forEach(b => b.addEventListener('click', () => { user = b.dataset.user; drawGuard(); }));
+document.querySelectorAll('[data-ev]').forEach(b => b.addEventListener('click', () => {
+  const ev = b.dataset.ev;
+  if (ev === 'reset') { g = S.freshLikes(); last = null; }
+  else if (ev === 'again') { if (last) S.apply(g, last); }
+  else { last = { type: ev, user }; S.apply(g, last); }
+  drawGuard();
+}));
+
+drawViews(); drawBatch(); drawGuard();
+const style = document.createElement('style'); style.textContent = CSS; document.head.append(style);
+mount($('tool'), TOOL);
+mount($('calls'), CALLS);
+</script>
+</body>
+</html>

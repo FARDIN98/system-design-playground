@@ -6,6 +6,7 @@ import ep4 from './data/ep4.js';
 import ep11 from './data/ep11.js';
 import ep2 from './data/ep2.js';
 import ep3 from './data/ep3.js';
+import ep5 from './data/ep5.js';
 import { CONCEPTS, LINKS } from './data/concepts.js';
 import { existsSync } from 'node:fs';
 
@@ -45,6 +46,7 @@ assert.equal(L.fmtBytes(7.24e6), '7.2 MB');
 assert.equal(L.indian(3e9), '300 crore');
 assert.equal(L.DRILLS.vus(() => 0.5).answer, 2000 * 30, 'sleep(1): requests ≈ VUs × seconds');
 assert.ok(Math.abs(L.DRILLS.bandwidth(() => 0.9).answer - 56631 * 50 / 1000) < 1e-6, 'req/s × KB ÷ 1000 = MB/s');
+assert.equal(L.DRILLS.batch(() => 0.5).answer, 200, '1M likes ÷ 5K per batch = 200 insertMany calls');
 
 // Drills: every kind produces a positive answer and explains the working
 for (const kind of Object.keys(L.DRILLS)) for (let i = 0; i < 20; i++) {
@@ -59,7 +61,7 @@ assert.deepEqual(fq.map(f => f.id), ['z', 'y', 'x']);
 assert.deepEqual(L.oftenMissed([{ id: 'p' }, { id: 'q' }], [{ ticked: ['p'] }, { ticked: ['p', 'q'] }]), ['q']);
 
 // Episode data
-for (const ep of [ep1, ep11, ep2, ep3, ep4]) {
+for (const ep of [ep1, ep11, ep2, ep3, ep4, ep5]) {
   assert.ok(ep.video && ep.name && ep.cards.length >= 15, `${ep.id} basics`);
   assert.ok(L.DRILLS_BY_EP[ep.id]?.length, `${ep.id} has drills`);
   assert.equal(new Set(ep.cards.map(c => L.cardId(ep.id, c.q))).size, ep.cards.length, `${ep.id} unique card ids`);
@@ -79,7 +81,7 @@ for (const ep of [ep1, ep11, ep2, ep3, ep4]) {
 const ids = new Set(CONCEPTS.map(c => c.id));
 assert.equal(ids.size, CONCEPTS.length, 'unique concept ids');
 for (const [a, c] of LINKS) assert.ok(ids.has(a) && ids.has(c) && a !== c, `link ${a}–${c}`);
-assert.ok(CONCEPTS.every(c => c.def && Object.keys(c.t).every(k => ['ep1', 'ep11', 'ep2', 'ep3', 'ep4'].includes(k))));
+assert.ok(CONCEPTS.every(c => c.def && Object.keys(c.t).every(k => ['ep1', 'ep11', 'ep2', 'ep3', 'ep4', 'ep5'].includes(k))));
 assert.ok(CONCEPTS.every(c => LINKS.some(l => l.includes(c.id))), 'every concept has at least one link');
 
-console.log(`selftest: all assertions passed (${ep1.cards.length + ep11.cards.length + ep2.cards.length + ep3.cards.length + ep4.cards.length} cards, ${CONCEPTS.length} concepts, ${LINKS.length} links)`);
+console.log(`selftest: all assertions passed (${ep1.cards.length + ep11.cards.length + ep2.cards.length + ep3.cards.length + ep4.cards.length + ep5.cards.length} cards, ${CONCEPTS.length} concepts, ${LINKS.length} links)`);

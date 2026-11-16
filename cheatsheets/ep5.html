@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EP-5 cheat sheet</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
+<div class="sheet">
+  <header>
+    <h1>EP-5 · Counting billions of likes &amp; views: Kafka, Redis, HyperLogLog, Cuckoo<br><small style="font-size:9pt;font-weight:500">Last-hour cheat sheet</small></h1>
+    <p>Ankit Jain · System Design EP-5<br><a href="https://www.youtube.com/watch?v=Oaf83IA_meM">youtube.com/watch?v=Oaf83IA_meM</a><br>“(general)” = standard practice, not from the video</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>Write path and read path <small>· ▶ 22:49 · 28:26 · 1:10:32</small></h2>
+      <svg viewBox="0 0 360 106" role="img" aria-label="Write: the user taps like, the API checks the user and post, puts the event in a Kafka topic and replies 202 at once; a consumer takes batches of up to 50K events, writes Mongo with insertMany and a unique index, then one Lua call updates Redis counters, HyperLogLog and the Cuckoo filter. Read: the client asks for posts, the API reads posts from Mongo and every count from Redis in one pipelined call, joins them and replies 200; if Redis is down the posts still load.">
+        <text x="2" y="7" class="b">✍️ WRITE · POST /posts/:id/like</text>
+        <rect class="bx" x="2" y="12" width="38" height="26" rx="3"/><text x="21" y="23" text-anchor="middle" class="b">📱 User</text><text x="21" y="32" text-anchor="middle" class="s">taps ❤️</text>
+        <rect class="hot" x="48" y="12" width="56" height="26" rx="3"/><text x="76" y="23" text-anchor="middle" class="b">API</text><text x="76" y="32" text-anchor="middle" class="s">user + post ok</text>
+        <rect class="hot" x="112" y="12" width="64" height="26" rx="3"/><text x="144" y="23" text-anchor="middle" class="b">Kafka topic</text><text x="144" y="32" text-anchor="middle" class="s">likes · views…</text>
+        <rect class="bx" x="184" y="12" width="64" height="26" rx="3"/><text x="216" y="23" text-anchor="middle" class="b">Consumer</text><text x="216" y="32" text-anchor="middle" class="s">≤ 50K per batch</text>
+        <rect class="ok" x="256" y="9" width="102" height="14" rx="3"/><text x="307" y="18.5" text-anchor="middle" class="s">Mongo: insertMany, unique</text>
+        <rect class="ok" x="256" y="27" width="102" height="14" rx="3"/><text x="307" y="36.5" text-anchor="middle" class="s">Redis: 1 Lua call per 5K</text>
+        <path class="ln" d="M40,25 L47,25"/><path class="ln" d="M104,25 L111,25"/><path class="ln" d="M176,25 L183,25"/><path class="ln g" d="M248,22 L255,17"/><path class="ln g" d="M248,28 L255,34"/>
+        <path class="ln g d" d="M76,38 V44 H21 V39"/><text x="84" y="47" class="s">202 Accepted at once · UI asks again after 1.5 s</text>
+        <text x="2" y="59" class="b">📖 READ · GET posts (Virat’s profile)</text>
+        <rect class="bx" x="2" y="64" width="38" height="26" rx="3"/><text x="21" y="75" text-anchor="middle" class="b">📱 Client</text><text x="21" y="84" text-anchor="middle" class="s">GET posts</text>
+        <rect class="hot" x="48" y="64" width="56" height="26" rx="3"/><text x="76" y="75" text-anchor="middle" class="b">API</text><text x="76" y="84" text-anchor="middle" class="s">map, then join</text>
+        <rect class="ok" x="112" y="61" width="106" height="14" rx="3"/><text x="165" y="70.5" text-anchor="middle" class="s">Mongo: the posts</text>
+        <rect class="ok" x="112" y="79" width="106" height="14" rx="3"/><text x="165" y="88.5" text-anchor="middle" class="s">Redis: 1 pipelined call</text>
+        <path class="ln" d="M40,77 L47,77"/><path class="ln" d="M104,74 L111,69"/><path class="ln" d="M104,80 L111,85"/>
+        <rect class="ok" x="226" y="64" width="132" height="26" rx="3"/><text x="292" y="75" text-anchor="middle" class="b">200: ❤️ 1M · 👁 3M · 👥 805.1K</text><text x="292" y="84" text-anchor="middle" class="s">Redis down → posts still load</text>
+        <path class="ln" d="M218,77 L225,77"/>
+        <text x="2" y="103" class="s">Never a Mongo count() on page load. At 500–600 likes skip all this; add it when the app grows.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>The 5 steps, for this episode</h2>
+      <ol class="steps">
+        <li><b>Requirements</b> <span class="t">3 min</span> · Likes, comments, total and unique views on viral posts; counts shown instantly; “did I like/see it?”.</li>
+        <li><b>Estimates</b> <span class="t">4 min</span> · <span class="formula">DB writes = events ÷ batch</span> <span class="formula">exact set ≈ viewers × 8 B</span> vs HLL ~12 KB <span class="gen">(general)</span>.</li>
+        <li><b>HLD</b> <span class="t">8 min</span> · LB → API servers → Kafka → consumer → Mongo + Redis (counters, HLL, Cuckoo). GET: Mongo + one Redis call.</li>
+        <li><b>Deep dive</b> <span class="t">8 min</span> · 202 Accepted, at-least-once + unique index, deletedCount guard, HLL vs counter, Cuckoo in Lua.</li>
+        <li><b>Trade-offs</b> <span class="t">5 min</span> · Instant vs exact (counts a few seconds late). HLL error vs memory. Bloom (no delete) vs Cuckoo. Drift → reconcile.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Which tool counts what? <small>· ▶ 40:18 · 44:20</small></h2>
+      <table>
+        <tr><td><b>Likes</b></td><td>Redis counter ±1 + Mongo row (unique postId + userId)</td></tr>
+        <tr><td><b>Total views</b></td><td>Redis counter: <code>INCRBY post:{id}:views</code></td></tr>
+        <tr><td><b>Unique views</b></td><td>HyperLogLog: <code>PFADD</code> / <code>PFCOUNT</code> (no remove)</td></tr>
+        <tr><td><b>Liked? Seen?</b></td><td>Cuckoo per user (delete OK); “maybe” → Mongo</td></tr>
+        <tr><td><b>Comments</b></td><td>Mongo collection + Redis counter</td></tr>
+        <tr><td><b>The flood</b></td><td>Kafka topic, key postId:userId, consumer batches</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Numbers to remember</h2>
+      <table>
+        <tr><td>Virat (real Instagram)</td><td class="n">271M followers · 7.8M likes</td></tr>
+        <tr><td>No queue needed at</td><td class="n">500–600 likes</td></tr>
+        <tr><td>Consumer batch (on screen)</td><td class="n">≤ 50K events</td></tr>
+        <tr><td>Lua chunks</td><td class="n">counters 5K · Cuckoo 2K</td></tr>
+        <tr><td>UI asks again after</td><td class="n">1.5 s</td></tr>
+        <tr><td>HLL per key / error <span class="gen">(general)</span></td><td class="n">~12 KB · ~0.81%</td></tr>
+        <tr><td>Lua Cuckoo filter</td><td class="n">~60–80 lines</td></tr>
+        <tr><td>Demo post</td><td class="n">1M ❤️ · 3M 👁 · 805.1K unique</td></tr>
+        <tr><td>Demo profile</td><td class="n">36 posts · 0 → 5M followers</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Duplicates and unlikes <small>· ▶ 38:13 · 42:20</small></h2>
+      <p style="margin:0">Kafka is <b>at-least-once</b>: an event can arrive twice. Unique index rejects the second like; Redis +1 only for rows really inserted. Unlike: <code>deleteOne</code>, then −1 only if <b>deletedCount = 1</b>, so a repeat never goes negative. Crash between Mongo and Redis = <b>drift</b> → reconcile job.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this</h2>
+      <ul class="say">
+        <li>“The like API only puts the event in Kafka and returns 202; a consumer writes in batches, so a viral post can’t choke the DB.”</li>
+        <li>“Counts come from Redis counters, read in one pipelined call with the posts; I never count rows on page load.”</li>
+        <li>“Unique views go in a HyperLogLog: about 12 KB per post with a small error. Likes stay exact because they can be undone.”</li>
+        <li>“I change a counter only when the DB really changed, because Kafka can deliver twice.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags: don’t say or do</h2>
+      <ul class="flags">
+        <li>One DB write (or a count query) per like at scale.</li>
+        <li>HyperLogLog for likes: it can’t subtract.</li>
+        <li>−1 on every unlike event, with no deletedCount check.</li>
+        <li>Bloom for “liked”: unlike needs delete.</li>
+        <li>Five Redis round trips per event instead of one Lua call.</li>
+        <li>Installing whatever package the AI suggests without checking it.</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public video; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: flags content that would be clipped off the A4 page */
+{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
+ if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+</body>
+</html>

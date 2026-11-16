@@ -8,7 +8,7 @@ export const CONCEPTS = [
   { id: 'gateway', label: 'API gateway', t: { ep1: 552 }, def: 'The front door: routes each request to the right service and hides the backend.' },
   { id: 'hotspot', label: 'Hotspot', t: { ep1: 552 }, def: 'One server or DB getting most of the traffic.' },
   { id: 'ttl', label: 'Seat lock + TTL', t: { ep1: 552 }, def: 'Hold a seat in Redis with a time-to-live, so the lock expires by itself. Stops double booking.' },
-  { id: 'queue', label: 'Queue (Kafka)', t: { ep1: 1447 }, def: 'Accept the order now; email, stock, SMS and push happen in the background.' },
+  { id: 'queue', label: 'Queue (Kafka)', t: { ep1: 1447, ep5: 1001 }, def: 'Accept the order now; email, stock, SMS and push happen in the background. EP-5: likes and views wait in Kafka topics and are written in batches.' },
   { id: 'cap', label: 'CAP theorem', t: { ep1: 1660 }, def: 'With data on many nodes, during a network split you choose consistency or availability.' },
   { id: 'partition', label: 'Partition', t: { ep1: 1752 }, def: 'A network split between DB nodes. The P in CAP is keeping working through it.' },
   { id: 'replication', label: 'Replication', t: { ep1: 1752 }, def: 'Copies of the same data on several nodes. More read capacity, and a backup.' },
@@ -21,7 +21,7 @@ export const CONCEPTS = [
   // in 2+ episodes
   { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
   { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970, ep3: 994 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
-  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis.' },
+  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479, ep5: 1184 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis.' },
   { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
@@ -32,7 +32,7 @@ export const CONCEPTS = [
   { id: 'fn', label: 'No false negatives', t: { ep4: 1726 }, def: 'A filter’s “NO” is always right. That is why it can answer 404 with no DB hit.' },
   { id: 'bloom', label: 'Bloom filter', t: { ep4: 832 }, def: 'A bit array + several hashes. Simple and small; can’t delete.' },
   { id: 'counting', label: 'Counting Bloom', t: { ep4: 1231 }, def: 'Bloom with counters instead of bits, so delete works. Costs more memory.' },
-  { id: 'cuckoo', label: 'Cuckoo filter', t: { ep4: 1263 }, def: 'Fingerprints in 2 possible buckets, with kick-outs. Supports real-time delete.' },
+  { id: 'cuckoo', label: 'Cuckoo filter', t: { ep4: 1263, ep5: 2691 }, def: 'Fingerprints in 2 possible buckets, with kick-outs. Supports real-time delete. EP-5: “did I like / see this post?”, run as Lua inside Redis.' },
   { id: 'fingerprint', label: 'Fingerprint', t: { ep4: 1263 }, def: 'A few bits of an item’s hash. Cuckoo stores these instead of the item.' },
   { id: 'quotient', label: 'Quotient filter', t: { ep4: 1293 }, def: 'Splits the hash into parts. Fast, easy delete, a bit complex. Used in storage systems.' },
   { id: 'fuse', label: 'Binary Fuse / XOR', t: { ep4: 986 }, def: 'The static king: smallest and fastest, but no add or delete, so rebuild to change.' },
@@ -68,6 +68,16 @@ export const CONCEPTS = [
   { id: 'netbottle', label: 'Network bottleneck', t: { ep3: 1546 }, def: 'The link between machines caps throughput: 2.4 GHz Wi-Fi gave 62,368 requests, a 1 Gbps LAN 1,016,029.' },
   { id: 'wired', label: 'Wired LAN / fibre', t: { ep3: 1636 }, def: 'Cables through a switch (1 Gbps at home). Data centres use Cat6/Cat7 and fibre at 10–100 Gbps, never Wi-Fi.' },
   { id: 'separate', label: 'Separate test, proxy, app, DB', t: { ep3: 1881 }, def: 'k6, Nginx and MongoDB on the app server stole its CPU (>95%). Give each its own machine.' },
+  // EP-5
+  { id: 'batching', label: 'Batch the writes', t: { ep5: 939 }, def: 'Group many events into one write, like Amazon packing a day’s parcels into one van. One DB write per like chokes the DB.' },
+  { id: 'accept202', label: '202 Accepted', t: { ep5: 2230 }, def: 'The like API puts the event in Kafka and replies 202 at once; a consumer writes later. The user never waits on the DB.' },
+  { id: 'optimistic', label: 'Optimistic update', t: { ep5: 4202 }, def: 'The heart turns red and +1 shows at once; 1.5 s later the page asks again and shows the real number.' },
+  { id: 'counter', label: 'Redis counters', t: { ep5: 1801 }, def: 'post:{id}:likes / :views / :comments, kept up to date by the consumer and read in one pipelined call. Never a DB count on page load.' },
+  { id: 'hll', label: 'HyperLogLog', t: { ep5: 1214 }, def: 'Unique views in a few KB of hashes (PFADD / PFCOUNT). Small error; it can’t remove or answer “did user X view?”.' },
+  { id: 'atleastonce', label: 'At-least-once delivery', t: { ep5: 2293 }, def: 'Kafka may deliver an event twice. A unique index on postId + userId stops a double like.' },
+  { id: 'deletedcount', label: 'deletedCount guard', t: { ep5: 2540 }, def: 'On unlike, decrement only if deleteOne really removed a row. A repeated unlike leaves the counter alone, never below 0.' },
+  { id: 'drift', label: 'Counter drift + reconcile', t: { ep5: 2293 }, def: 'A crash between the Mongo insert and the Redis +1 leaves the counter a bit low. A reconcile job fixes it later.' },
+  { id: 'lua', label: 'Lua script in Redis', t: { ep5: 3399 }, def: 'Many Redis commands in one call, run atomically: fewer network trips and no half-done updates. He ran Cuckoo this way.' },
 ];
 
 export const LINKS = [
@@ -86,4 +96,7 @@ export const LINKS = [
   ['p95', 'loadtest'], ['nginxcache', 'revproxy'], ['nginxcache', 'cache'], ['nginxcache', 'stale'], ['stale', 'cap'],
   ['lb', 'lbtypes'], ['lb', 'roundrobin'], ['roundrobin', 'leastconn'], ['roundrobin', 'iphash'], ['horizontal', 'netbottle'],
   ['loadtest', 'netbottle'], ['netbottle', 'wired'], ['loadtest', 'separate'], ['monitoring', 'separate'],
+  ['queue', 'batching'], ['batching', 'accept202'], ['queue', 'accept202'], ['accept202', 'optimistic'], ['cache', 'counter'],
+  ['counter', 'hll'], ['hll', 'cuckoo'], ['queue', 'atleastonce'], ['indexing', 'atleastonce'], ['atleastonce', 'deletedcount'],
+  ['counter', 'deletedcount'], ['counter', 'drift'], ['lua', 'counter'], ['lua', 'cuckoo'],
 ];

@@ -156,8 +156,20 @@ export const DRILLS = {
       unit: 'req/s', answer: n / 110,
       working: `1m50s = 110 s. ${fmtNum(n)} ÷ 110 ≈ <b>${fmtNum(n / 110)}</b> req/s.` };
   },
+  batch(rnd) {
+    const likes = pick([1e5, 1e6, 4e6], rnd), size = pick([500, 5000, 50000], rnd);
+    return { kind: 'batch', q: `<b>${indian(likes)}</b> likes arrive on one post. The Kafka consumer writes them with <code>insertMany</code>, up to <b>${fmtNum(size)}</b> per batch. How many <b>insertMany calls</b>?`,
+      unit: 'calls', answer: Math.ceil(likes / size),
+      working: `${fmtNum(likes)} ÷ ${fmtNum(size)} = <b>${fmtNum(Math.ceil(likes / size))}</b> calls, instead of ${fmtNum(likes)} single writes. EP-5’s consumer took up to 50K events per batch: 1M likes ≈ 20 calls.` };
+  },
+  uniq(rnd) {
+    const users = pick([1e6, 1e7, 1e8], rnd);
+    return { kind: 'uniq', q: `You keep the exact set of <b>${indian(users)}</b> viewer ids for one post, at <b>8 bytes</b> per id (general). How many <b>MB</b>? (A HyperLogLog stays ~12 KB.)`,
+      unit: 'MB', answer: (users * 8) / 1e6,
+      working: `${fmtNum(users)} × 8 B = ${fmtNum(users * 8)} B ≈ <b>${fmtBytes(users * 8)}</b> for one post, before any overhead. Redis’s HyperLogLog stays ~12 KB with ~0.81% error (general), which is why EP-5 used it for unique views.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'], ep5: ['batch', 'uniq', 'servers'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;
