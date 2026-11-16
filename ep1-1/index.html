@@ -99,7 +99,7 @@ const MSG = {
 
 function draw() {
   $('l-vus').value = st.vus; $('l-vus-out').textContent = fmtNum(st.vus);
-  document.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', String(+st[b.dataset.k]) === b.dataset.v));
+  document.querySelectorAll('#lab [data-k]').forEach(b => b.setAttribute('aria-pressed', String(+st[b.dataset.k]) === b.dataset.v));
   $('l-conns').hidden = $('l-gzip').hidden = !st.nginx;
   const r = S.run(st), [kind, html] = MSG[r.limit](r);
   const msg = $('l-msg'); msg.className = `banner ${kind}`; msg.innerHTML = html;
@@ -113,7 +113,7 @@ function draw() {
     S.RUNS.map(v => bar(v.requests, S.sameCfg(v.cfg, st) ? 'match' : '', v.label, v.id)).join('');
 }
 $('l-vus').addEventListener('input', e => { st.vus = +e.target.value; draw(); });
-document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('#lab [data-k]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.k; st[k] = k === 'workers' || k === 'conns' ? +b.dataset.v : b.dataset.v === '1'; draw();
 }));
 $('l-runs').addEventListener('click', e => { const b = e.target.closest('[data-run]'); if (b) { Object.assign(st, S.RUNS.find(r => r.id === b.dataset.run).cfg); draw(); } });
