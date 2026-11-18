@@ -65,6 +65,7 @@ ol.pz button.act { padding: 2px 8px; font-size: 13px; }
     <button type="button" data-ep="ep4">EP-4</button>
     <button type="button" data-ep="ep5">EP-5</button>
     <button type="button" data-ep="ep6">EP-6</button>
+    <button type="button" data-ep="ep7">EP-7</button>
     <button type="button" data-ep="all">All</button>
   </div>
 
@@ -109,10 +110,11 @@ import ep2 from '../data/ep2.js';
 import ep3 from '../data/ep3.js';
 import ep5 from '../data/ep5.js';
 import ep6 from '../data/ep6.js';
+import ep7 from '../data/ep7.js';
 import { CONCEPTS, LINKS } from '../data/concepts.js';
 import * as L from '../lib.js';
 
-const EPS = { ep1, ep11, ep2, ep3, ep4, ep5, ep6 };
+const EPS = { ep1, ep11, ep2, ep3, ep4, ep5, ep6, ep7 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const p2 = n => String(n).padStart(2, '0');
@@ -279,7 +281,7 @@ $('puzzle').addEventListener('dragend', () => { dragFrom = null; drawPuzzle(); }
 const byId = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
 const epsOf = c => Object.keys(c.t);
 const only = (c, e) => epsOf(c).length === 1 && epsOf(c)[0] === e;
-// column 0: EP-1, EP-2, then EP-6 · column 1: shared, then EP-1.1 · column 2: EP-4, EP-3, then EP-5 (keeps every link short)
+// column 0: EP-1, EP-2, EP-6, then EP-7 · column 1: shared, then EP-1.1 · column 2: EP-4, EP-3, then EP-5 (keeps every link short)
 const GROUPS = [
   { h: 'EP-1', col: 0, has: c => only(c, 'ep1') },
   { h: 'EP-2', col: 0, has: c => only(c, 'ep2') },
@@ -289,6 +291,7 @@ const GROUPS = [
   { h: 'EP-3', col: 2, has: c => only(c, 'ep3') },
   { h: 'EP-5', col: 2, has: c => only(c, 'ep5') },
   { h: 'EP-6', col: 0, has: c => only(c, 'ep6') },
+  { h: 'EP-7', col: 0, has: c => only(c, 'ep7') },
 ];
 const neighbours = id => LINKS.filter(l => l.includes(id)).map(l => (l[0] === id ? l[1] : l[0]));
 let mSel = null;

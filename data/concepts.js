@@ -2,7 +2,7 @@
 // Add a new episode's concepts here with its own key in `t`, and link them to older ones.
 export const CONCEPTS = [
   // EP-1
-  { id: 'hld', label: 'HLD', t: { ep1: 982 }, def: 'High-level design: the big boxes and choices (services, DB, cache, queue, load balancer).' },
+  { id: 'hld', label: 'HLD', t: { ep1: 982, ep7: 2326 }, def: 'High-level design: the big boxes and choices (services, DB, cache, queue, load balancer). EP-7: make the AI draw it from the code (only verified components).' },
     { id: 'monolith', label: 'Monolith', t: { ep1: 1294 }, def: 'The whole app built and deployed as one piece. Fine to start with.' },
   { id: 'cdn', label: 'CDN', t: { ep1: 582 }, def: 'Copies of files kept in data centres near users, for low latency.' },
   { id: 'gateway', label: 'API gateway', t: { ep1: 552 }, def: 'The front door: routes each request to the right service and hides the backend.' },
@@ -19,10 +19,10 @@ export const CONCEPTS = [
   { id: 'backup', label: 'Backup', t: { ep1: 2210 }, def: 'A copy of the DB and static files to recover from loss, even if you replicate.' },
   { id: 'archival', label: 'Archival', t: { ep1: 2240 }, def: 'Move old data out of the main DB but keep it (UPI ~6 months, IRCTC old tickets).' },
   // in 2+ episodes
-  { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one.' },
+  { id: 'lld', label: 'LLD', t: { ep1: 982, ep11: 1100, ep7: 2849 }, def: 'Low-level design: the details inside each box (folders, DB schema, APIs, error handling). EP-1.1 builds one. EP-7: the AI traced one feature’s call graph and status state machine with file:line.' },
   { id: 'lb', label: 'Load balancer', t: { ep1: 552, ep4: 1479, ep11: 4970, ep3: 994 }, def: 'Spreads requests across many servers so none becomes a hotspot. EP-1.1: round robin, least connections, health checks.' },
-  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479, ep5: 1184, ep6: 1446 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis. EP-6: popular searches and query vectors are cached for 60 s.' },
-  { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479, ep6: 281 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers. EP-6: “a truck that can do everything”; he picked the lighter Typesense.' },
+  { id: 'cache', label: 'Redis / cache', t: { ep1: 1447, ep2: 2038, ep4: 1479, ep5: 1184, ep6: 1446, ep7: 2107 }, def: 'A very fast in-memory store. EP-1: cache and seat locks. EP-2: caching is a concept, not only Redis (Nginx, Node, Memcached too). EP-4: the filter is checked even before Redis. EP-6: popular searches and query vectors are cached for 60 s. EP-7: DB = permanent, on disk; Redis = fast, in RAM, can lose data on restart unless RDB or AOF.' },
+  { id: 'search', label: 'Elasticsearch', t: { ep1: 1447, ep4: 1479, ep6: 281, ep7: 1492 }, def: 'A search engine for fast text search. In EP-4 it confirms “maybe” answers. EP-6: “a truck that can do everything”; he picked the lighter Typesense. EP-7: “a big truck” next to Typesense’s “fast bike”; it keeps its index on disk.' },
   { id: 'indexing', label: 'Indexing', t: { ep1: 1752, ep4: 2957 }, def: 'A lookup table so the DB finds rows without a full scan. Fast, but it costs RAM and storage.' },
   { id: 'sharding', label: 'Sharding', t: { ep1: 1752, ep4: 2805 }, def: 'Split the data into chunks across machines. EP-4: needed at 300 crore records.' },
   { id: 'loadtest', label: 'Load test (k6)', t: { ep1: 2149, ep4: 2006, ep11: 3862, ep2: 893, ep3: 1422 }, def: 'Send many users and requests to find the threshold. EP-4, EP-1.1, EP-2 and EP-3 used Grafana k6.' },
@@ -70,7 +70,7 @@ export const CONCEPTS = [
   { id: 'separate', label: 'Separate test, proxy, app, DB', t: { ep3: 1881 }, def: 'k6, Nginx and MongoDB on the app server stole its CPU (>95%). Give each its own machine.' },
   // EP-5
   { id: 'batching', label: 'Batch the writes', t: { ep5: 939 }, def: 'Group many events into one write, like Amazon packing a day’s parcels into one van. One DB write per like chokes the DB.' },
-  { id: 'accept202', label: '202 Accepted', t: { ep5: 2230, ep6: 311 }, def: 'The like API puts the event in Kafka and replies 202 at once; a consumer writes later. The user never waits on the DB. EP-6: saving a product returns 202; the AI work runs in a worker.' },
+  { id: 'accept202', label: '202 Accepted', t: { ep5: 2230, ep6: 311, ep7: 2481 }, def: 'The like API puts the event in Kafka and replies 202 at once; a consumer writes later. The user never waits on the DB. EP-6: saving a product returns 202; the AI work runs in a worker. EP-7: POST /products replies 202 { id, status: “queued” }; workers do the rest.' },
   { id: 'optimistic', label: 'Optimistic update', t: { ep5: 4202 }, def: 'The heart turns red and +1 shows at once; 1.5 s later the page asks again and shows the real number.' },
   { id: 'counter', label: 'Redis counters', t: { ep5: 1801 }, def: 'post:{id}:likes / :views / :comments, kept up to date by the consumer and read in one pipelined call. Never a DB count on page load.' },
   { id: 'hll', label: 'HyperLogLog', t: { ep5: 1214 }, def: 'Unique views in a few KB of hashes (PFADD / PFCOUNT). Small error; it can’t remove or answer “did user X view?”.' },
@@ -82,13 +82,22 @@ export const CONCEPTS = [
   { id: 'multilingual', label: 'Multilingual search', t: { ep6: 496 }, def: 'People search in their own language, script and spelling (“MIKL milk”, “आलू”, “मच्छर खा गए रे बाबा”); the search must still find the product.' },
   { id: 'aitags', label: 'AI tags at write time', t: { ep6: 1384 }, def: 'When a product is added, a local LLM (Gemma 3 4B) writes tags in 10+ languages plus typos: potato, aloo, आलू, batata. Keyword search matches them.' },
   { id: 'embeddings', label: 'Vectors (embeddings)', t: { ep6: 1415 }, def: 'BGE-M3 turns text into numbers; “आलू” lands next to “potato”, so meaning matches even when a tag is missing.' },
-  { id: 'hybrid', label: 'Hybrid search (Typesense)', t: { ep6: 251 }, def: 'Keyword score + vector score in one rank. Typesense keeps the index in RAM and tolerates typos.' },
-  { id: 'localllm', label: 'Local model (Ollama)', t: { ep6: 1200 }, def: 'Run Gemma 3 and BGE-M3 on your own machine: no per-call cost, but your hardware (8 GB RAM works, 16 GB ideal). Keep the provider swappable.' },
+  { id: 'hybrid', label: 'Hybrid search (Typesense)', t: { ep6: 251, ep7: 1646 }, def: 'Keyword score + vector score in one rank. Typesense keeps the index in RAM and tolerates typos. EP-7: “hybrid” also means running both engines, each for its own job.' },
+  { id: 'localllm', label: 'Local model (Ollama)', t: { ep6: 1200, ep7: 1981 }, def: 'Run Gemma 3 and BGE-M3 on your own machine: no per-call cost, but your hardware (8 GB RAM works, 16 GB ideal). Keep the provider swappable. EP-7: Ollama is the runner, Gemma the model (“the YouTube app and the video”).' },
   { id: 'nightbatch', label: 'Night batch job', t: { ep6: 924 }, def: 'Existing products go through the same Kafka pipeline at night to be re-tagged and re-embedded in bulk.' },
-  { id: 'dlq', label: 'Dead-letter topic', t: { ep6: 1446 }, def: 'An event that fails 3 retries goes to products.ingest.dlq instead of blocking the queue.' },
+  { id: 'dlq', label: 'Dead-letter topic', t: { ep6: 1446, ep7: 2481 }, def: 'An event that fails 3 retries goes to products.ingest.dlq instead of blocking the queue. EP-7: 3 failed enrich attempts park the product in products.enrich.dlq for a manual look.' },
   { id: 'darkstore', label: 'Dark store / pincode', t: { ep6: 2052 }, def: 'A pincode maps to a nearby store; every search carries its store id, so results come only from that store’s stock.' },
   { id: 'humanloop', label: 'Admin approves', t: { ep6: 1751 }, def: 'Missed searches are never auto-added: the AI suggests a match and an admin approves with one click. One wrong tag spoils every search.' },
   { id: 'failclosed', label: 'Fail closed', t: { ep6: 1962 }, def: 'If the model is down or a word looks unsafe, add nothing; the tag stays pending. Bad words are checked at 5 places.' },
+  // EP-7
+  { id: 'architect', label: 'Architect mindset', t: { ep7: 275 }, def: 'Same AI, same repo, different questions: the architect goes phase by phase, asks for proof and draws the HLD and LLD. Prompt-and-pray “works today, breaks tomorrow”.' },
+  { id: 'airules', label: 'AI ground rules (Phase 1)', t: { ep7: 701 }, def: 'A setup prompt before any question: persona, read-only, proof rule, fact vs assumption, one phase at a time, crisp 3–4 line answers. The AI shows commands; you run them.' },
+  { id: 'proof', label: 'Proof: file:line', t: { ep7: 974 }, def: 'Every claim cites the exact file and line; missing things are “Not found in code”; guesses are labelled “Assumption”. You check the AI instead of trusting it.' },
+  { id: 'twoais', label: 'Coding AI + free AI', t: { ep7: 2816 }, def: 'Code questions to the coding AI that sees the repo (Claude Code, Cursor); new terms to a free chat AI (Meta AI, ChatGPT) to save tokens.' },
+  { id: 'yourstack', label: 'Learn in your stack', t: { ep7: 1217 }, def: '“I’m a Java developer”: the AI maps each piece to Java first (Fastify ≈ Spring Boot, Zod ≈ Bean Validation, Kafka workers ≈ @KafkaListener), then shows this repo’s file:line.' },
+  { id: 'statemachine', label: 'Status state machine', t: { ep7: 2879 }, def: 'Product.status: pending → enriched → indexed; 3 failed enrich attempts → failed, parked in products.enrich.dlq.' },
+  { id: 'ramindex', label: 'RAM index limit', t: { ep7: 1614 }, def: 'Typesense keeps its index in RAM. At crores of products: a bigger machine, split the collection, or move to Elasticsearch (disk).' },
+  { id: 'poc', label: 'POC to learn', t: { ep7: 1737 }, def: 'Proof of concept: load the same data into both options and compare. “500 books on swimming won’t teach you to swim.”' },
 ];
 
 export const LINKS = [
@@ -113,4 +122,6 @@ export const LINKS = [
   ['multilingual', 'aitags'], ['multilingual', 'embeddings'], ['aitags', 'hybrid'], ['embeddings', 'hybrid'], ['hybrid', 'search'], ['hybrid', 'cache'],
   ['localllm', 'aitags'], ['localllm', 'embeddings'], ['aitags', 'queue'], ['queue', 'dlq'], ['nightbatch', 'queue'], ['nightbatch', 'aitags'],
   ['darkstore', 'hybrid'], ['humanloop', 'aitags'], ['humanloop', 'guardrails'], ['failclosed', 'guardrails'], ['failclosed', 'localllm'],
+  ['architect', 'airules'], ['architect', 'hld'], ['architect', 'lld'], ['airules', 'proof'], ['airules', 'guardrails'], ['twoais', 'airules'], ['twoais', 'yourstack'],
+  ['yourstack', 'proof'], ['statemachine', 'lld'], ['statemachine', 'dlq'], ['statemachine', 'accept202'], ['ramindex', 'search'], ['ramindex', 'hybrid'], ['poc', 'ramindex'],
 ];

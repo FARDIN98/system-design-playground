@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EP-7 cheat sheet</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><marker id="ar" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 z" fill="context-stroke"/></marker></defs></svg>
+<div class="sheet">
+  <header>
+    <h1>EP-7 · Understand any backend project with AI: the architect’s questions, proof with file:line, HLD and LLD<br><small style="font-size:9pt;font-weight:500">Last-hour cheat sheet</small></h1>
+    <p>Ankit Jain · System Design EP-7<br><a href="https://www.youtube.com/watch?v=63oqZ2OYGz0">youtube.com/watch?v=63oqZ2OYGz0</a><br>“(general)” = standard practice, not from the video</p>
+  </header>
+
+  <div class="cols">
+    <section class="span">
+      <h2>The method, and the demo it was run on <small>· ▶ 07:07 · 41:21 · 44:22</small></h2>
+      <svg viewBox="0 0 360 104" role="img" aria-label="Method: eight stages in order: setup with AI rules and read-only, explore purpose, folders, stack and run it, request flow with APIs and protocols, data, building blocks, architecture with HLD and LLD, reliability, ship and scale. Demo on Jaldi V2: the admin posts a product, the API replies 202 and publishes to Kafka products.ingest; the ingest worker saves it to MongoDB as pending; the enrich worker adds tags with gemma3:4b and a vector with bge-m3 and marks it enriched; the index worker upserts it into Typesense and marks it indexed. Three failed enrich attempts send it to products.enrich.dlq. Search reads Typesense directly and logs an event to Kafka after replying.">
+        <text x="2" y="7" class="b">🧭 METHOD · ask phase by phase, every claim with file:line</text>
+        <rect class="hot" x="2" y="12" width="40" height="22" rx="3"/><text x="22" y="21" text-anchor="middle" class="b">1 Setup</text><text x="22" y="29" text-anchor="middle" class="s">rules</text>
+        <rect class="bx" x="47" y="12" width="40" height="22" rx="3"/><text x="67" y="21" text-anchor="middle" class="b">2 Explore</text><text x="67" y="29" text-anchor="middle" class="s">stack, run</text>
+        <rect class="bx" x="92" y="12" width="40" height="22" rx="3"/><text x="112" y="21" text-anchor="middle" class="b">3 Flow</text><text x="112" y="29" text-anchor="middle" class="s">APIs</text>
+        <rect class="bx" x="137" y="12" width="40" height="22" rx="3"/><text x="157" y="21" text-anchor="middle" class="b">4 Data</text><text x="157" y="29" text-anchor="middle" class="s">schema</text>
+        <rect class="bx" x="182" y="12" width="40" height="22" rx="3"/><text x="202" y="21" text-anchor="middle" class="b">5 Blocks</text><text x="202" y="29" text-anchor="middle" class="s">auth, jobs</text>
+        <rect class="hot" x="227" y="12" width="40" height="22" rx="3"/><text x="247" y="21" text-anchor="middle" class="b">6 Arch</text><text x="247" y="29" text-anchor="middle" class="s">HLD, LLD</text>
+        <rect class="bx" x="272" y="12" width="40" height="22" rx="3"/><text x="292" y="21" text-anchor="middle" class="b">7 Reliab.</text><text x="292" y="29" text-anchor="middle" class="s">failures</text>
+        <rect class="ok" x="317" y="12" width="41" height="22" rx="3"/><text x="337" y="21" text-anchor="middle" class="b">8 Scale</text><text x="337" y="29" text-anchor="middle" class="s">CI/CD, quiz</text>
+        <text x="2" y="47" class="b">📦 DEMO · Jaldi V2 (EP-6’s code): admin adds a product</text>
+        <rect class="bx" x="2" y="52" width="44" height="24" rx="3"/><text x="24" y="62" text-anchor="middle" class="b">Admin</text><text x="24" y="71" text-anchor="middle" class="s">x-admin-key</text>
+        <rect class="hot" x="52" y="52" width="44" height="24" rx="3"/><text x="74" y="62" text-anchor="middle" class="b">API</text><text x="74" y="71" text-anchor="middle" class="s">202 queued</text>
+        <rect class="hot" x="102" y="52" width="58" height="24" rx="3"/><text x="131" y="62" text-anchor="middle" class="b">Ingest</text><text x="131" y="71" text-anchor="middle" class="s">Mongo · pending</text>
+        <rect class="hot" x="166" y="52" width="66" height="24" rx="3"/><text x="199" y="62" text-anchor="middle" class="b">Enrich</text><text x="199" y="71" text-anchor="middle" class="s">tags + vector</text>
+        <rect class="hot" x="238" y="52" width="58" height="24" rx="3"/><text x="267" y="62" text-anchor="middle" class="b">Index</text><text x="267" y="71" text-anchor="middle" class="s">→ Typesense</text>
+        <rect class="ok" x="302" y="52" width="56" height="24" rx="3"/><text x="330" y="62" text-anchor="middle" class="b">Searchable</text><text x="330" y="71" text-anchor="middle" class="s">shoppers find it</text>
+        <path class="ln" d="M46,64 L51,64"/><path class="ln" d="M96,64 L101,64"/><path class="ln" d="M160,64 L165,64"/><path class="ln" d="M232,64 L237,64"/><path class="ln g" d="M296,64 L301,64"/>
+        <path class="ln r d" d="M199,76 V84 H212"/><text x="215" y="86" class="s">3 failed attempts → products.enrich.dlq</text>
+        <text x="2" y="86" class="s">status: pending → enriched → indexed</text>
+        <text x="2" y="98" class="s">Each hop is a Kafka topic. Search never waits on AI: store, parse, cached vector, hybrid, re-rank, reply, then log.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>The 5 steps: “walk me through a backend you didn’t write”</h2>
+      <ol class="steps">
+        <li><b>Requirements</b> <span class="t">3 min</span> · Purpose in one line; users (shopper, admin); core value (search in any language from the nearby store).</li>
+        <li><b>Estimates</b> <span class="t">4 min</span> · 31 APIs (13 public, 4 rate-limited, 14 admin); <span class="formula">RAM index = products × KB each</span> <span class="gen">(general)</span>.</li>
+        <li><b>HLD</b> <span class="t">8 min</span> · Fastify API → Kafka → workers → MongoDB (truth), Redis (cache), Typesense (search), Ollama (AI).</li>
+        <li><b>Deep dive</b> <span class="t">8 min</span> · Add product (202 → ingest → enrich → index, DLQ) and search, with file:line for each step.</li>
+        <li><b>Trade-offs</b> <span class="t">5 min</span> · Typesense (RAM, fast) vs Elasticsearch (disk, heavy); local Ollama vs paid AI; shared admin key vs JWT.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>The Phase 1 prompt <small>· ▶ 11:41</small></h2>
+      <table>
+        <tr><td><b>Persona</b></td><td>“big brother”: chill tone, 100% technical, real examples</td></tr>
+        <tr><td><b>Proof</b></td><td>every claim with <code>file:line</code>, else “Not found in code”</td></tr>
+        <tr><td><b>Fact / Assumption</b></td><td>on separate lines; research the code, not memory</td></tr>
+        <tr><td><b>Read-only</b></td><td>no install, migration, <code>docker up</code>: it shows, you run</td></tr>
+        <tr><td><b>Phase stop</b></td><td>one phase, then “next phase?”</td></tr>
+        <tr><td><b>Format</b></td><td>3–4 lines, easy words, points and tables, no em-dash</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Numbers to remember</h2>
+      <table>
+        <tr><td>Question list · guide phases</td><td class="n">17 · 21</td></tr>
+        <tr><td>Stages · depth levels</td><td class="n">8 · 4</td></tr>
+        <tr><td>APIs: public · rate-limited · admin</td><td class="n">13 · 4 · 14</td></tr>
+        <tr><td>Enrich attempts before the DLQ</td><td class="n">3</td></tr>
+        <tr><td>Kafka topics (prefix jaldi.)</td><td class="n">5</td></tr>
+        <tr><td>Ports: API · Typesense · Kafka</td><td class="n">5004 · 8108 · 9094</td></tr>
+        <tr><td>Local models (Ollama)</td><td class="n">gemma3:4b · bge-m3</td></tr>
+        <tr><td>Typesense on small data</td><td class="n">&lt; 50 ms</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Two AIs <small>· ▶ 22:17 · 46:56</small></h2>
+      <p style="margin:0"><b>Coding AI</b> (Claude Code, Cursor, Copilot in Ask mode) for questions about <i>this</i> code. <b>Free chat AI</b> (Meta AI, ChatGPT, DeepSeek, Gemini) for new terms: saves tokens. Limit hit? Same rules, another tool. Don’t know the stack? “I’m a Java developer”: Java parallel first, then file:line. Web chat can’t see a folder: <code>npx repomix</code> or <code>gitingest</code>.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this</h2>
+      <ul class="say">
+        <li>“I set the AI’s rules first: read-only, file:line for every claim, facts and assumptions apart.”</li>
+        <li>“Adding a product returns 202; three Kafka workers save, enrich and index it.”</li>
+        <li>“Search reads Typesense directly and never waits on the LLM; analytics go to Kafka after the reply.”</li>
+        <li>“Typesense is fast because the index is in RAM; at crores of products I’d test splitting or Elasticsearch.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags: don’t say or do</h2>
+      <ul class="flags">
+        <li>Prompt and pray: copy, paste, push.</li>
+        <li>Trusting a claim without its file:line.</li>
+        <li>Letting the AI run installs or migrations.</li>
+        <li>Asking everything in one message.</li>
+        <li>Asking a free chat AI about your repo.</li>
+        <li>Picking an engine without a POC.</li>
+      </ul>
+    </section>
+  </div>
+
+  <footer><span>From Ankit Jain’s public video; revision notes, not official material.</span><span>More: fardin98.github.io/system-design-playground</span></footer>
+</div>
+<script>/* build.sh check: flags content that would be clipped off the A4 page */
+{const s=document.querySelector('.sheet'),c=document.querySelector('.cols'),f=document.querySelector('footer');
+ if(matchMedia('(min-width: 821px)').matches)document.body.dataset.slack=Math.round(f.getBoundingClientRect().top-c.getBoundingClientRect().bottom-(s.scrollHeight-s.clientHeight));}</script>
+</body>
+</html>

@@ -180,8 +180,14 @@ export const DRILLS = {
       unit: 'MB', answer: (n * 1024 * 4) / 1e6,
       working: `1,024 × 4 B = 4,096 B ≈ 4 KB per product. ${fmtNum(n)} × 4 KB ≈ <b>${fmtBytes(n * 4096)}</b>, before the text fields and index overhead (general). RAM is the price of Typesense’s speed.` };
   },
+  ramidx(rnd) {
+    const n = pick([1e6, 1e7, 1e8], rnd), kb = pick([1, 2, 4], rnd);
+    return { kind: 'ramidx', q: `EP-7’s curious question: Typesense keeps its index in RAM. If each product takes about <b>${kb} KB</b> in the index (general), how many <b>GB</b> of RAM for <b>${indian(n)}</b> products?`,
+      unit: 'GB', answer: (n * kb * 1000) / 1e9,
+      working: `${fmtNum(n)} × ${kb} KB = ${fmtNum(n * kb)} KB ≈ <b>${fmtNum((n * kb * 1000) / 1e9)} GB</b> (general sizes). Past one machine’s RAM, his options: a bigger machine, split the collection, or Elasticsearch on disk.` };
+  },
 };
-export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'], ep5: ['batch', 'uniq', 'servers'], ep6: ['seed', 'vecmem', 'servers'] };
+export const DRILLS_BY_EP = { ep1: ['rps', 'servers'], ep11: ['vus', 'gzip', 'servers'], ep2: ['cores', 'bandwidth', 'servers'], ep3: ['rate', 'link', 'servers'], ep4: ['storage', 'bloom', 'copies'], ep5: ['batch', 'uniq', 'servers'], ep6: ['seed', 'vecmem', 'servers'], ep7: ['ramidx', 'seed', 'servers'] };
 
 // ---------- follow-ups ----------
 export const WEAK = 0.6;
