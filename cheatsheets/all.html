@@ -174,8 +174,8 @@
 </div>
 <div class="sheet">
   <header>
-    <h1>System design interview · the last hour<br><small style="font-size:9pt;font-weight:500">Page 2 · EP-6 multilingual search (AI tags, vectors, Typesense)</small></h1>
-    <p>Ankit Jain · System Design series (YouTube)<br>EP-6 <a href="https://www.youtube.com/watch?v=IMTl_De78GE">IMTl_De78GE</a><br>“(general)” = standard practice, not from the videos</p>
+    <h1>System design interview · the last hour<br><small style="font-size:9pt;font-weight:500">Page 2 · EP-6 multilingual search · EP-7 any backend with AI</small></h1>
+    <p>Ankit Jain · System Design series (YouTube)<br>EP-6 <a href="https://www.youtube.com/watch?v=IMTl_De78GE">IMTl_De78GE</a> · EP-7 <a href="https://www.youtube.com/watch?v=63oqZ2OYGz0">63oqZ2OYGz0</a><br>“(general)” = standard practice, not from the videos</p>
   </header>
 
   <div class="cols">
@@ -255,6 +255,71 @@
         <li>Letting the model write to the DB.</li>
         <li>One India-wide index for a 10-minute delivery app.</li>
         <li>Elasticsearch on day one “because everyone uses it”.</li>
+      </ul>
+    </section>
+    <section class="span">
+      <h2>EP-7 · understand any backend with AI: the method, and the demo it ran on <small>· ▶ 07:07 · 11:41 · 41:21</small></h2>
+      <svg viewBox="0 0 360 50" role="img" aria-label="Method: set the AI's rules first, then go phase by phase through eight stages, from setup, explore, request flow, data and building blocks to HLD and LLD, reliability, and ship and scale, asking for file:line proof for every claim. Demo on Jaldi V2, EP-6's code: the admin posts a product with x-admin-key, the API replies 202 and publishes to Kafka; the ingest worker saves it to MongoDB as pending, the enrich worker adds tags and a vector and marks it enriched, the index worker upserts it into Typesense and marks it indexed. Three failed enrich attempts send it to products.enrich.dlq.">
+        <text x="2" y="7" class="b">🧭 METHOD · rules first (read-only, file:line, fact vs assumption), then one phase at a time</text>
+        <rect class="hot" x="2" y="10" width="40" height="12" rx="3"/><text x="22" y="18.5" text-anchor="middle" class="b">1 Setup</text>
+        <rect class="bx" x="47" y="10" width="40" height="12" rx="3"/><text x="67" y="18.5" text-anchor="middle" class="b">2 Explore</text>
+        <rect class="bx" x="92" y="10" width="40" height="12" rx="3"/><text x="112" y="18.5" text-anchor="middle" class="b">3 Flow</text>
+        <rect class="bx" x="137" y="10" width="40" height="12" rx="3"/><text x="157" y="18.5" text-anchor="middle" class="b">4 Data</text>
+        <rect class="bx" x="182" y="10" width="40" height="12" rx="3"/><text x="202" y="18.5" text-anchor="middle" class="b">5 Blocks</text>
+        <rect class="hot" x="227" y="10" width="40" height="12" rx="3"/><text x="247" y="18.5" text-anchor="middle" class="b">6 Arch</text>
+        <rect class="bx" x="272" y="10" width="40" height="12" rx="3"/><text x="292" y="18.5" text-anchor="middle" class="b">7 Reliab.</text>
+        <rect class="ok" x="317" y="10" width="41" height="12" rx="3"/><text x="337" y="18.5" text-anchor="middle" class="b">8 Scale</text>
+        <text x="2" y="31" class="b">📦 DEMO · add a product in Jaldi V2 (EP-6’s code)</text><text x="358" y="31" text-anchor="end" class="s">each hop is a Kafka topic · 3 enrich failures → .dlq</text>
+        <rect class="bx" x="2" y="34" width="44" height="15" rx="3"/><text x="24" y="44" text-anchor="middle" class="b">Admin</text>
+        <rect class="hot" x="52" y="34" width="44" height="15" rx="3"/><text x="74" y="44" text-anchor="middle" class="b">API <tspan class="s">202</tspan></text>
+        <rect class="hot" x="102" y="34" width="58" height="15" rx="3"/><text x="131" y="44" text-anchor="middle" class="b">Ingest <tspan class="s">pending</tspan></text>
+        <rect class="hot" x="166" y="34" width="66" height="15" rx="3"/><text x="199" y="44" text-anchor="middle" class="b">Enrich <tspan class="s">enriched</tspan></text>
+        <rect class="hot" x="238" y="34" width="58" height="15" rx="3"/><text x="267" y="44" text-anchor="middle" class="b">Index <tspan class="s">indexed</tspan></text>
+        <rect class="ok" x="302" y="34" width="56" height="15" rx="3"/><text x="330" y="44" text-anchor="middle" class="b">Searchable</text>
+        <path class="ln" d="M46,41.5 L51,41.5"/><path class="ln" d="M96,41.5 L101,41.5"/><path class="ln" d="M160,41.5 L165,41.5"/><path class="ln" d="M232,41.5 L237,41.5"/><path class="ln g" d="M296,41.5 L301,41.5"/>
+      </svg>
+    </section>
+
+    <section>
+      <h2>Who keeps what <small>· EP-7 · ▶ 38:46</small></h2>
+      <table class="scale">
+        <tr><td><b>Fastify API</b></td><td>:5004 · Zod · <code>x-admin-key</code> · 202</td></tr>
+        <tr><td><b>Kafka</b></td><td>:9094 · ingest → enrich → index · DLQ</td></tr>
+        <tr><td><b>MongoDB</b></td><td>products + status: <b>source of truth</b></td></tr>
+        <tr><td><b>Typesense</b></td><td>:8108 · index in RAM · hybrid</td></tr>
+        <tr><td><b>Ollama</b></td><td>gemma3:4b tags · bge-m3 vectors</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Numbers to remember <small>· EP-7</small></h2>
+      <table>
+        <tr><td>Questions · guide phases</td><td class="n">17 · 21</td></tr>
+        <tr><td>Stages · depth levels</td><td class="n">8 · 4</td></tr>
+        <tr><td>APIs: public · rate-limited · admin</td><td class="n">13 · 4 · 14</td></tr>
+        <tr><td>Enrich attempts before the DLQ</td><td class="n">3</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Guardrails <small>· EP-7 · ▶ 11:41</small></h2>
+      <p style="margin:0"><b>Read-only</b>: it shows, you run. <code>file:line</code> or “Not found in code”. Fact vs Assumption apart. One phase per message.</p>
+    </section>
+
+    <section>
+      <h2>Say it like this <small>· EP-7</small></h2>
+      <ul class="say">
+        <li>“Rules first: read-only, file:line for every claim.”</li>
+        <li>“Add product: 202, then Kafka workers do the rest.”</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🚩 Red flags <small>· EP-7</small></h2>
+      <ul class="flags">
+        <li>Prompt and pray: copy, paste, push.</li>
+        <li>An AI claim with no file:line.</li>
+        <li>Picking an engine without a POC.</li>
       </ul>
     </section>
   </div>
